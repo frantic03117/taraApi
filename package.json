@@ -1,0 +1,27 @@
+{
+  "name": "taraapi",
+  "version": "1.0.0",
+  "description": "",
+  "main": "taraapi.js",
+  "scripts": {
+    "start": "nodemon taraapi.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^17.2.3",
+    "express": "^5.2.1",
+    "express-validator": "^7.3.1",
+    "jsonwebtoken": "^9.0.2",
+    "moment-timezone": "^0.6.0",
+    "mongoose": "^9.0.0",
+    "multer": "^2.0.2",
+    "nodemon": "^3.1.11",
+    "slugify": "^1.6.6",
+    "uuid": "^13.0.0",
+    "xlsx": "^0.18.5"
+  }
+}
