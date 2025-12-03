@@ -9,9 +9,14 @@ const makeSlug = (title) => {
 }
 exports.create_setting = async (req, res) => {
     try {
+        const fields = ['title', 'type'];
+        const emptyFields = fields.filter(field => !req.body[field]);
+        if (emptyFields.length > 0) {
+            return res.json({ success: 0, errors: 'The following fields are required:', fields: emptyFields });
+        }
         const data = { ...req.body };
-        const media_value = req.body.media_value;
-        const url = makeSlug(media_value);
+        // const media_value = req.body.media_value;
+        const url = makeSlug(req.body.title + "-" + req.body.media_value);
         if (req.file) {
             data['file'] = req.file.path
         }
@@ -19,7 +24,7 @@ exports.create_setting = async (req, res) => {
         const resp = await Setting.create(data);
         return res.json({ success: 1, message: "Created successfully", data: resp })
     } catch (err) {
-        return res.json({ success: 0, message: err.message })
+        return res.json({ success: 0, message: err.message, data : req.body })
     }
 }
 exports.get_setting = async (req, res) => {
