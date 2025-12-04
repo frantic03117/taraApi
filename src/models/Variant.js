@@ -5,9 +5,9 @@ const variantSchema = new Schema(
         product: {
             type: Schema.Types.ObjectId,
             ref: "Product",
-            required: true,
+            
         },
-        sku: { type: String, unique: true, required: true },
+        sku: { type: String, unique: true,  },
         barcode: { type: String, default: null },
         variant_name: { type: String },
         color: { type: String },
@@ -28,7 +28,7 @@ const variantSchema = new Schema(
         },
         images: [String],
         video_url: { type: String },
-        price: { type: Number, required: true },
+        price: { type: Number,  },
         sale_price: { type: Number },
         mrp: { type: Number },
         discount_percent: { type: Number },

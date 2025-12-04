@@ -127,16 +127,16 @@ exports.update_profile = async (req, res) => {
 }
 exports.user_list = async (req, res) => {
     try {
-        const data = {
-            first_name: "Admin",
-            last_name: "Tara",
-            email: "admin@tara.com",
-            country_code: "+91",
-            mobile: 9090909090,
-            role: "Admin",
-            password: "Admin@2025#",
-            is_verified: true
-        }
+        // const data = {
+        //     first_name: "Admin",
+        //     last_name: "Tara",
+        //     email: "admin@tara.com",
+        //     country_code: "+91",
+        //     mobile: 9090909090,
+        //     role: "Admin",
+        //     password: "Admin@2025#",
+        //     is_verified: true
+        // }
         const user = await Users.findOneAndUpdate(
             { email: data.email },    // search by unique email
             { $set: data },           // update these fields
