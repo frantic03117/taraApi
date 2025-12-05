@@ -6,6 +6,6 @@ const Store = require("../src/middleware/Store");
 const router = Router();
 router.get('/', get_setting);
 router.post('/', Auth('Admin'), Store('any').single('file'), create_setting);
-router.put('/update/:id', Auth('Admin'), update_setting);
+router.put('/update/:id', Auth('Admin'), Store('any').single('file'), update_setting);
 router.delete('/delete/:id', Auth('Admin'), delete_setting);
 module.exports = router;
