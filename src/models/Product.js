@@ -77,7 +77,7 @@ function createSlug(title) {
         .replace(/\s+/g, "-")           // replace spaces with -
         .replace(/-+/g, "-");           // collapse multiple -
 }
-productSchema.pre("save", async function (next) {
+productSchema.pre("save", async function () {
     if (this.isNew || this.isModified("title")) {
 
         const Product = model("Product");
@@ -86,7 +86,6 @@ productSchema.pre("save", async function (next) {
         let slug = baseSlug;
         let count = 1;
 
-        // Check existing slug and make unique
         while (await Product.exists({ slug })) {
             slug = `${baseSlug}-${count}`;
             count++;
@@ -94,8 +93,6 @@ productSchema.pre("save", async function (next) {
 
         this.slug = slug;
     }
-
-    next();
 });
 
 module.exports = new model('Product', productSchema);

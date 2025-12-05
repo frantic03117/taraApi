@@ -1,6 +1,7 @@
 const { Schema, model } = require("mongoose");
 
 const schema = new Schema({
+    order : Number,
     parent: {
         type: Schema.Types.ObjectId,
         ref: "Setting",

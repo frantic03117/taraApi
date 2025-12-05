@@ -27,10 +27,12 @@ const bannerRoute = require('./routes/bannerRoutes');
 const settingRoute = require('./routes/settingRoute');
 const userRoute = require('./routes/userRoutes');
 const appRoute = require('./routes/AppRoutes');
+const productRoute = require('./routes/productRoute');
 app.use('/api/v1/banner', bannerRoute);
 app.use('/api/v1/setting', settingRoute);
 app.use('/api/v1/user', userRoute);
 app.use('/api/v1/app', appRoute);
+app.use('/api/v1/product', productRoute);
 
 
 server.listen(port, () => {
