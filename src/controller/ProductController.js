@@ -1,5 +1,7 @@
 const Product = require("../models/Product");
 const Variant = require("../models/Variant");
+const fs = require("fs");
+const path = require("path");
 
 /**
  * Create a product with variants
@@ -31,45 +33,52 @@ const Variant = require("../models/Variant");
  */
 exports.createProductWithVariants = async (req, res) => {
     try {
+        // return res.json({ data: req.files || [] })
         let { variants, ...productData } = req.body;
-        // Parse JSON if needed
+
+        // Parse variants if sent as string
         if (typeof variants === "string") {
             variants = JSON.parse(variants);
         }
-        // Save product images
+
+        /* ----------------------------------------------------
+           SAVE PRODUCT IMAGES
+        ---------------------------------------------------- */
         let productImages = [];
-        if (req.files.productImages) {
+        if (req.files?.productImages) {
             productImages = req.files.productImages.map((file) => {
                 return "/uploads/products/" + file.filename;
             });
         }
         productData.images = productImages;
-        // Create product
+
+        // Save product first
         const product = new Product(productData);
         await product.save();
-        // Handle variants
-        const variantDocs = [];
-        for (let i = 0; i < variants.length; i++) {
-            const v = variants[i];
-            // Variant images
-            let variantImages = [];
-            const key = `variant_${i}_images`;
+        const variantImagesFromFiles = req.files?.variantImages || [];
+        const variantImageIndexes = req.body.variantImageIndex || [];
+        const variantIndexes = Array.isArray(variantImageIndexes)
+            ? variantImageIndexes
+            : [variantImageIndexes];
+        const variantImageMap = {};
+        variantImagesFromFiles.forEach((file, i) => {
+            const vIndex = parseInt(variantIndexes[i], 10);
 
-            if (req.files[key] && req.files[key].length > 0) {
-                variantImages = req.files[key].map((file) => {
-                    return "/uploads/variants/" + file.filename;
-                });
-            }
+            if (!variantImageMap[vIndex]) variantImageMap[vIndex] = [];
 
-            variantDocs.push({
-                ...v,
-                images: variantImages,
-                product: product._id,
-            });
-        }
+            variantImageMap[vIndex].push(file.path);
+        });
+        const variantDocs = variants.map((v, index) => ({
+            ...v,
+            images: variantImageMap[index] || [],
+            product: product._id
+        }));
 
         await Variant.insertMany(variantDocs);
 
+        /* ----------------------------------------------------
+           RETURN RESPONSE
+        ---------------------------------------------------- */
         const createdProduct = await Product.findById(product._id).lean();
         const createdVariants = await Variant.find({ product: product._id }).lean();
 
@@ -80,14 +89,20 @@ exports.createProductWithVariants = async (req, res) => {
                 variants: createdVariants,
             },
         });
+
     } catch (error) {
         console.error(error);
-        res.status(400).json({ success: false, message: error.message });
+        res.status(400).json({
+            success: false,
+            message: error.message,
+        });
     }
 };
+
 exports.getProducts = async (req, res) => {
     try {
         const {
+            id,
             page = 1,
             limit = 12,
             search = "",
@@ -104,6 +119,12 @@ exports.getProducts = async (req, res) => {
         } = req.query;
         const skip = (page - 1) * limit;
         let productFilter = { is_deleted: false, is_active: true };
+        if (id) {
+            const findproduct = await Product.findOne({ _id: id });
+            if (findproduct) {
+                productFilter['_id'] = findproduct._id;
+            }
+        }
         if (search) {
             productFilter.title = { $regex: search, $options: "i" };
         }
@@ -174,6 +195,16 @@ exports.getProducts = async (req, res) => {
                 }
             },
             { $unwind: { path: "$category", preserveNullAndEmptyArrays: true } },
+            // Populate sub category / brand names
+            {
+                $lookup: {
+                    from: "settings",
+                    localField: "sub_category",
+                    foreignField: "_id",
+                    as: "sub_category"
+                }
+            },
+            { $unwind: { path: "$sub_category", preserveNullAndEmptyArrays: true } },
 
             {
                 $lookup: {
@@ -200,12 +231,12 @@ exports.getProducts = async (req, res) => {
         const total = totalResults.length;
 
         return res.json({
-            success: true,
+            success: 1,
             page: Number(page),
             limit: Number(limit),
             total,
             totalPages: Math.ceil(total / limit),
-            products
+            data: products
         });
 
     } catch (err) {
@@ -213,4 +244,67 @@ exports.getProducts = async (req, res) => {
         res.status(500).json({ success: false, message: err.message });
     }
 };
+exports.deleteProduct = async (req, res) => {
+    try {
+        const productId = req.params.id;
 
+        // 1. Find the product
+        const product = await Product.findById(productId);
+        if (!product) {
+            return res.status(404).json({
+                success: false,
+                message: "Product not found",
+            });
+        }
+
+        // 2. Delete product images
+        if (product.images && product.images.length > 0) {
+            product.images.forEach((imgPath) => {
+                const filePath = path.join(__dirname, "..", imgPath);
+                deleteFile(filePath);
+            });
+        }
+
+        // 3. Find variants linked to product
+        const variants = await Variant.find({ product: productId });
+
+        // 4. Delete variant images
+        variants.forEach((variant) => {
+            if (variant.images && variant.images.length > 0) {
+                variant.images.forEach((imgPath) => {
+                    const filePath = path.join(__dirname, "..", imgPath);
+                    deleteFile(filePath);
+                });
+            }
+        });
+
+        // 5. Delete variants from DB
+        await Variant.deleteMany({ product: productId });
+
+        // 6. Delete product from DB
+        await Product.findByIdAndDelete(productId);
+
+        res.json({
+            success: true,
+            message: "Product and all related variants deleted successfully",
+        });
+
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({
+            success: false,
+            message: error.message,
+        });
+    }
+};
+
+// Utility file delete function
+function deleteFile(filePath) {
+    fs.unlink(filePath, (err) => {
+        if (err) {
+            console.log("File not found or cannot delete:", filePath);
+        } else {
+            console.log("Deleted:", filePath);
+        }
+    });
+}
