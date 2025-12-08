@@ -4,7 +4,7 @@ const { getall, _create, update_banner, delete_banner } = require("../src/contro
 const { Auth } = require("../src/middleware/Auth");
 const router = Router();
 router.get('/', getall);
-router.post('/', Auth('Admin'), Store('image').single('image'), _create);
+router.post('/', Auth('Admin'), Store('any').single('image'), _create);
 router.put('/update/:id', Auth('Admin'), update_banner);
 router.delete('/:id', Auth('Admin'), delete_banner);
 module.exports = router;

@@ -24,7 +24,7 @@ exports.create_setting = async (req, res) => {
         const resp = await Setting.create(data);
         return res.json({ success: 1, message: "Created successfully", data: resp })
     } catch (err) {
-        return res.json({ success: 0, message: err.message, data : req.body })
+        return res.json({ success: 0, message: err.message, data: req.body })
     }
 }
 exports.get_setting = async (req, res) => {
@@ -47,7 +47,7 @@ exports.get_setting = async (req, res) => {
         if (media_value) {
             fdata['media_value'] = media_value;
         }
-        const resp = await Setting.find(fdata);
+        const resp = await Setting.find(fdata).populate('parent')
         return res.json({ success: 1, message: "Fetched successfully", data: resp })
     } catch (err) {
         return res.json({ success: 0, message: err.message })
@@ -103,3 +103,56 @@ exports.getTypes = async (req, res) => {
     const resp = await Setting.distinct("type");
     return res.json({ success: 1, message: "Setting", data: resp });
 }
+exports.menubar_web = async (req, res) => {
+    try {
+        // 1️⃣ Get all top-level menu items
+        const tabs = await Setting.find({
+            type: "nav_menu",
+            parent: null,
+            isActive: true
+        }, { title: 1, slug: 1 }).sort({ order: 1 });
+
+        // 2️⃣ Fetch categories + subcategories for each tab
+        const menu = await Promise.all(
+            tabs.map(async (tab) => {
+                // Get categories under this menu tab
+                const categories = await Setting.find({
+                    parent: tab._id,
+                    type: "category",
+                    isActive: true
+                }, { title: 1, slug: 1, file: 1 }).sort({ order: 1 });
+
+                // Add subcategories for each category
+                const categoriesWithChildren = await Promise.all(
+                    categories.map(async (cat) => {
+                        const subcategories = await Setting.find({
+                            parent: cat._id,
+                            type: "sub-category",
+                            isActive: true
+                        }, { title: 1, slug: 1 }).sort({ order: 1 }).lean()
+
+                        return {
+                            ...cat.toObject(),
+                            children: subcategories,
+                        };
+                    })
+                );
+
+                return {
+                    ...tab.toObject(),
+                    children: categoriesWithChildren
+                };
+            })
+        );
+
+        return res.json({
+            success: 1,
+            message: "Navbar Menu",
+            data: menu
+        });
+
+    } catch (error) {
+        console.log(error);
+        return res.status(500).json({ success: 0, message: "Server error" });
+    }
+};

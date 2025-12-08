@@ -3,10 +3,14 @@ const mongoose = require('mongoose');
 
 const _create = async (req, res) => {
     const { url, } = req.body;
+    if (req.body.buttons) {
+        req.body.buttons = JSON.parse(req.body.buttons);
+    }
     const data = { ...req.body };
 
     if (req.file) {
-        data['image'] = req.file.path
+        data['file'] = req.file.path
+        data['file_type'] = req.file.mimetype;
         const banner = await Banner.create(data);
         return res.json({
             errors: [],

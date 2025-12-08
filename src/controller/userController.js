@@ -137,11 +137,11 @@ exports.user_list = async (req, res) => {
         //     password: "Admin@2025#",
         //     is_verified: true
         // }
-        const user = await Users.findOneAndUpdate(
-            { email: data.email },    // search by unique email
-            { $set: data },           // update these fields
-            { new: true, upsert: true } // create if not exists
-        );
+        // const user = await Users.findOneAndUpdate(
+        //     { email: data.email },    // search by unique email
+        //     { $set: data },           // update these fields
+        //     { new: true, upsert: true } // create if not exists
+        // );
         const fdata = {
             role: { $nin: ["Admin", "Employee"] },
             is_deleted: false
