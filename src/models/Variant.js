@@ -5,9 +5,10 @@ const variantSchema = new Schema(
         product: {
             type: Schema.Types.ObjectId,
             ref: "Product",
-            
+
         },
-        sku: { type: String, unique: true,  },
+
+        sku: { type: String, unique: true, },
         barcode: { type: String, default: null },
         variant_name: { type: String },
         color: { type: String },
@@ -21,6 +22,7 @@ const variantSchema = new Schema(
         gsm: { type: Number },
         transparency: { type: String },
         liner_material: { type: String },
+        pattern: String,
         attributes: {
             type: Map,
             of: Schema.Types.Mixed,
@@ -28,11 +30,11 @@ const variantSchema = new Schema(
         },
         images: [String],
         video_url: { type: String },
-        price: { type: Number,  },
+        price: { type: Number, },
         sale_price: { type: Number },
         mrp: { type: Number },
         discount_percent: { type: Number },
-        stock_qty: { type: Number, default: 0 },
+        stock: { type: Number, default: 0 },
         in_stock: { type: Boolean, default: true },
         batch_number: { type: String },
         lot_number: { type: String },

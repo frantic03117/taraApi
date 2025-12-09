@@ -1,4 +1,5 @@
 const Product = require("../models/Product");
+const Setting = require("../models/Setting");
 const Variant = require("../models/Variant");
 const fs = require("fs");
 const path = require("path");
@@ -83,17 +84,18 @@ exports.createProductWithVariants = async (req, res) => {
         const createdVariants = await Variant.find({ product: product._id }).lean();
 
         res.status(201).json({
-            success: true,
+            success: 1,
             data: {
                 product: createdProduct,
                 variants: createdVariants,
             },
+            message: "Product with variants created successfully"
         });
 
     } catch (error) {
         console.error(error);
         res.status(400).json({
-            success: false,
+            success: 0,
             message: error.message,
         });
     }
@@ -307,4 +309,454 @@ function deleteFile(filePath) {
             console.log("Deleted:", filePath);
         }
     });
+}
+exports.addProductVariant = async (req, res) => {
+    const product_id = req.params;
+    let variants = req.body.variants;
+    variants = JSON.parse(variants);
+    const variantImagesFromFiles = req.files?.variantImages || [];
+    const variantImageIndexes = req.body.variantImageIndex || [];
+    const variantIndexes = Array.isArray(variantImageIndexes)
+        ? variantImageIndexes
+        : [variantImageIndexes];
+    const variantImageMap = {};
+    variantImagesFromFiles.forEach((file, i) => {
+        const vIndex = parseInt(variantIndexes[i], 10);
+
+        if (!variantImageMap[vIndex]) variantImageMap[vIndex] = [];
+
+        variantImageMap[vIndex].push(file.path);
+    });
+    const variantDocs = variants.map((v, index) => ({
+        ...v,
+        images: variantImageMap[index] || [],
+        product: product_id
+    }));
+
+    await Variant.insertMany(variantDocs);
+    return res.status(201).json({ success: 1, message: "Product Variant added successfully" });
+}
+exports.deleteProductVariant = async (req, res) => {
+    try {
+        const { variantId } = req.params;
+
+        if (!variantId) {
+            return res.status(400).json({
+                success: false,
+                message: "Variant ID is required",
+            });
+        }
+
+        // Find variant
+        const variant = await Variant.findById(variantId);
+
+        if (!variant) {
+            return res.status(404).json({
+                success: false,
+                message: "Variant not found",
+            });
+        }
+
+        // Save product ID before deletion
+        const productId = variant.product;
+
+        // Delete images (optional)
+        if (variant.images && variant.images.length > 0) {
+            variant.images.forEach((img) => {
+                const fs = require("fs");
+                try {
+                    fs.unlinkSync(img); // remove file
+                } catch (err) {
+                    console.log("Image delete failed:", img);
+                }
+            });
+        }
+
+        // Remove variant
+        await Variant.findByIdAndDelete(variantId);
+
+        // OPTIONAL: If no variants remain, delete product automatically
+        // const variantCount = await Variant.countDocuments({ product: productId });
+        // if (variantCount === 0) {
+        //     await Product.findByIdAndDelete(productId);
+        // }
+
+        res.json({
+            success: true,
+            message: "Variant deleted successfully",
+        });
+
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({
+            success: false,
+            message: error.message,
+        });
+    }
+};
+exports.addVariantImages = async (req, res) => {
+    try {
+        const { variantId } = req.params;
+        const files = req.files.variantImages
+        // return res.json({ success: 0, data: files })
+        if (!variantId) {
+            return res.status(400).json({
+                success: false,
+                message: "Variant ID is required",
+            });
+        }
+
+        const variant = await Variant.findById(variantId);
+        if (!variant) {
+            return res.status(404).json({
+                success: false,
+                message: "Variant not found",
+            });
+        }
+
+        // Collect uploaded image paths
+        const uploadedImages = files.map(file => {
+            return file.path;
+        });
+
+        // Append new images
+        variant.images.push(...uploadedImages);
+
+        await variant.save();
+
+        res.json({
+            success: true,
+            message: "Variant images added successfully",
+            data: variant
+        });
+
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({
+            success: false,
+            message: error.message,
+        });
+    }
+};
+exports.deleteVariantImage = async (req, res) => {
+    try {
+        const { variantId } = req.params;
+        const image = req.body.image;
+        if (!variantId || !image) {
+            return res.status(400).json({
+                success: false,
+                message: "Variant ID and image path are required",
+            });
+        }
+
+        const variant = await Variant.findById(variantId);
+        if (!variant) {
+            return res.status(404).json({
+                success: false,
+                message: "Variant not found",
+            });
+        }
+
+        // Check image exists in variant
+        const imageIndex = variant.images.indexOf(image);
+        if (imageIndex === -1) {
+            return res.status(404).json({
+                success: false,
+                message: "Image not found in variant",
+            });
+        }
+
+        // Remove from DB array
+        variant.images.splice(imageIndex, 1);
+
+        // Delete image file (optional)
+        try {
+            const fs = require("fs");
+            fs.unlinkSync(image.replace(/^\//, "")); // remove leading slash
+        } catch (err) {
+            console.log("Image delete failed:", err);
+        }
+
+        await variant.save();
+
+        res.json({
+            success: true,
+            message: "Variant image deleted successfully",
+            data: variant
+        });
+
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({
+            success: false,
+            message: error.message,
+        });
+    }
+};
+exports.variantList = async (req, res) => {
+    try {
+        let {
+            id,
+            page = 1,
+            limit = 20,
+            search = "",
+            sort = "-createdAt",
+            productId,
+            in_stock,
+            is_active,
+            nav_menu,
+            category_slug,
+            sub_category_slug,
+            ...dynamicFilters
+        } = req.query;
+
+        page = parseInt(page);
+        limit = parseInt(limit);
+
+        const filter = { is_deleted: false };
+
+        /* ----------------------------------------------
+           BASE SEARCH FILTER
+        -------------------------------------------------- */
+        if (search) {
+            filter.$or = [
+                { variant_name: { $regex: search, $options: "i" } },
+                { sku: { $regex: search, $options: "i" } },
+                { color: { $regex: search, $options: "i" } },
+                { size: { $regex: search, $options: "i" } },
+                { barcode: { $regex: search, $options: "i" } }
+            ];
+        }
+
+        /* ----------------------------------------------
+           DIRECT VARIANT FILTERS
+        -------------------------------------------------- */
+        if (productId) filter.product = productId;
+        if (in_stock !== undefined) filter.in_stock = in_stock === "true";
+        if (is_active !== undefined) filter.is_active = is_active === "true";
+        if (id) filter["_id"] = id;
+
+        /* ----------------------------------------------
+           CATEGORY / MENU FILTERS
+        -------------------------------------------------- */
+
+        // NAV MENU -> CATEGORY -> PRODUCT -> VARIANT
+        if (nav_menu) {
+            const categories = await Setting.find(
+                { parent: nav_menu, type: "category" },
+                "_id"
+            );
+
+            const categoryIds = categories.map(c => c._id);
+
+            const products = await Product.find(
+                { category: { $in: categoryIds }, is_deleted: false },
+                "_id"
+            );
+
+            filter.product = { $in: products.map(p => p._id) };
+        }
+
+        // CATEGORY SLUG
+        if (category_slug) {
+            const cats = await Setting.find({
+                type: "category",
+                slug: category_slug
+            });
+
+            const products = await Product.find(
+                { category: { $in: cats.map(c => c._id) }, is_deleted: false },
+                "_id"
+            );
+
+            filter.product = { $in: products.map(p => p._id) };
+        }
+
+        // SUBCATEGORY SLUG
+        if (category_slug && sub_category_slug) {
+            const subcats = await Setting.find({
+                type: "sub-category",
+                slug: sub_category_slug
+            });
+
+            const products = await Product.find(
+                { sub_category: { $in: subcats.map(c => c._id) }, is_deleted: false },
+                "_id"
+            );
+
+            filter.product = { $in: products.map(p => p._id) };
+        }
+
+        /* ----------------------------------------------
+           DYNAMIC VARIANT FILTERS
+           Example:
+           /variant-list?color=Red&size=M&fabric=Cotton
+        -------------------------------------------------- */
+        const selectableFields = [
+            "color",
+            "color_code",
+            "size",
+            "fabric",
+            "material",
+            "fabric_type",
+            "gsm",
+            "transparency",
+            "liner_material",
+            "attributes"
+        ];
+
+        for (let key in dynamicFilters) {
+            if (selectableFields.includes(key)) {
+                // Multi-value filter → comma separated: Red,Blue,Green
+                const values = dynamicFilters[key].split(",");
+                filter[key] = { $in: values };
+            }
+        }
+
+        /* ----------------------------------------------
+           EXECUTE QUERY
+        -------------------------------------------------- */
+        const skip = (page - 1) * limit;
+
+        const [variants, total] = await Promise.all([
+            Variant.find(filter)
+                .populate("product", "name images category title")
+                .sort(sort)
+                .skip(skip)
+                .limit(limit)
+                .lean(),
+            Variant.countDocuments(filter),
+        ]);
+
+        const totalPages = Math.ceil(total / limit);
+
+        res.json({
+            success: true,
+            data: variants,
+            filter,
+            pagination: {
+                page,
+                limit,
+                total,
+                totalPages
+            }
+        });
+
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({
+            success: 0,
+            message: error.message,
+        });
+    }
+};
+
+exports.updateVariant = async (req, res) => {
+    try {
+        const { variantId } = req.params;
+
+        if (!variantId) {
+            return res.status(400).json({
+                success: 0,
+                message: "Variant ID is required",
+            });
+        }
+
+        const variant = await Variant.findById(variantId);
+        if (!variant) {
+            return res.status(404).json({
+                success: 0,
+                message: "Variant not found",
+            });
+        }
+
+        // Data coming from body
+        let data = { ...req.body };
+
+        /** -----------------------------------------
+         * HANDLE EXISTING IMAGES
+         * User may send:
+         *   existingImages: ["url1","url2"]
+         *   (to keep those images)
+         ------------------------------------------ */
+        let existingImages = variant.images;
+
+        if (data.existingImages) {
+            try {
+                existingImages = JSON.parse(data.existingImages);
+            } catch {
+                existingImages = Array.isArray(data.existingImages)
+                    ? data.existingImages
+                    : [data.existingImages];
+            }
+        }
+
+        /** -----------------------------------------
+         * HANDLE NEW IMAGE UPLOADS
+         ------------------------------------------ */
+        let newImages = [];
+
+        if (req.files && req.files.length > 0) {
+            newImages = req.files.map((file) = file.path);
+        }
+
+        // Combine existing + new images
+        data.images = [...existingImages, ...newImages];
+
+        // Update variant
+        const updated = await Variant.findByIdAndUpdate(variantId, data, {
+            new: true,
+            runValidators: true,
+        });
+
+        res.json({
+            success: 1,
+            message: "Variant updated successfully",
+            data: updated,
+        });
+
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({
+            success: 0,
+            message: error.message,
+        });
+    }
+};
+
+exports.filters_matrix = async (req, res) => {
+
+    try {
+        const colors = await Variant.distinct("color", {
+            is_deleted: false
+        });
+        const materials = await Variant.distinct("material", {
+            is_deleted: false
+        });
+        const fabrics = await Variant.distinct("fabric", {
+            is_deleted: false
+        });
+        const patterns = await Variant.distinct("pattern", {
+            is_deleted: false
+        });
+
+        res.json({
+            success: 1,
+            data: {
+                color: colors,
+                material: materials,
+                fabric: fabrics,
+                pattern: patterns
+            }
+        });
+
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({
+            success: false,
+            message: error.message
+        });
+    }
+
+
 }
