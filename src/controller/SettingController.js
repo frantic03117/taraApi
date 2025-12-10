@@ -30,8 +30,9 @@ exports.create_setting = async (req, res) => {
 exports.get_setting = async (req, res) => {
     try {
 
-        const { id, type, title, media_value, parent, page = 1, perPage = 10 } = req.query;
+        const { id, keyword, type, title, media_value, parent, page = 1, perPage = 10 } = req.query;
         const fdata = {};
+
         if (type) {
             fdata['type'] = { $in: type.split(',') };
         }
@@ -39,7 +40,7 @@ exports.get_setting = async (req, res) => {
             fdata['_id'] = id;
         }
         if (title) {
-            fdata['title'] = title;
+            fdata['title'] = { $regex: title, $options: "i" };
         }
         if (parent) {
             fdata['parent'] = parent;

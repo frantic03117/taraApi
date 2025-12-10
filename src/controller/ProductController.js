@@ -1,3 +1,4 @@
+const { Types } = require("mongoose");
 const Product = require("../models/Product");
 const Setting = require("../models/Setting");
 const Variant = require("../models/Variant");
@@ -100,6 +101,7 @@ exports.createProductWithVariants = async (req, res) => {
         });
     }
 };
+const isValidId = (id) => Types.ObjectId.isValid(id);
 
 exports.getProducts = async (req, res) => {
     try {
@@ -130,9 +132,19 @@ exports.getProducts = async (req, res) => {
         if (search) {
             productFilter.title = { $regex: search, $options: "i" };
         }
-        if (category) productFilter.category = category;
-        if (sub_category) productFilter.sub_category = sub_category;
-        if (brand) productFilter.brand = brand;
+
+        if (category && isValidId(category)) {
+            productFilter.category = new Types.ObjectId(category);
+        }
+
+        if (sub_category && isValidId(sub_category)) {
+            productFilter.sub_category = new Types.ObjectId(sub_category);
+        }
+
+        if (brand && isValidId(brand)) {
+            productFilter.brand = new Types.ObjectId(brand);
+        }
+
         if (tags) {
             productFilter.tags = { $in: tags.split(",") };
         }
