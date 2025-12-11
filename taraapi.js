@@ -29,12 +29,14 @@ const userRoute = require('./routes/userRoutes');
 const appRoute = require('./routes/AppRoutes');
 const productRoute = require('./routes/productRoute');
 const offerRoute = require('./routes/offer.routes');
+const testroute = require('./routes/Testimonial.routes');
 app.use('/api/v1/banner', bannerRoute);
 app.use('/api/v1/setting', settingRoute);
 app.use('/api/v1/user', userRoute);
 app.use('/api/v1/app', appRoute);
 app.use('/api/v1/product', productRoute);
 app.use('/api/v1/offer', offerRoute);
+app.use('/api/v1/testimonial', testroute);
 
 
 server.listen(port, () => {
