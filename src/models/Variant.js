@@ -14,7 +14,7 @@ const variantSchema = new Schema(
         color: { type: String },
         color_code: { type: String },
         size: { type: String },
-        size_group: { type: String },
+        size_group: [String],
         numeric_size: { type: Number },
         fabric: { type: String },
         material: { type: String },

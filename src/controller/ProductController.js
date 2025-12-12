@@ -53,7 +53,9 @@ exports.createProductWithVariants = async (req, res) => {
             });
         }
         productData.images = productImages;
-
+        if (productData.seo_keywords) {
+            productData.seo_keywords = productData.seo_keywords?.split(',')
+        }
         // Save product first
         const product = new Product(productData);
         await product.save();

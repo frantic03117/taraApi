@@ -30,6 +30,8 @@ const productSchema = new Schema({
         type: String,
         default: null,
     },
+    gtin: String,
+    mpn: String,
     wash: { type: String },
     wash_care: { type: String },
     care_instructions: { type: String },
