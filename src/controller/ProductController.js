@@ -107,6 +107,7 @@ exports.getProducts = async (req, res) => {
     try {
         const {
             id,
+            slug,
             page = 1,
             limit = 12,
             search = "",
@@ -131,6 +132,9 @@ exports.getProducts = async (req, res) => {
         }
         if (search) {
             productFilter.title = { $regex: search, $options: "i" };
+        }
+        if (slug) {
+            productFilter.slug = slug;
         }
 
         if (category && isValidId(category)) {
@@ -632,7 +636,20 @@ exports.variantList = async (req, res) => {
 
         const [variants, total] = await Promise.all([
             Variant.find(filter)
-                .populate("product", "name images category title")
+                .populate([
+                    {
+                        path: "product",
+                        select: "name images category title slug",
+                        populate: {
+                            path: "category",
+                            select: "parent title slug file",
+                            populate: {
+                                path: "parent",
+                                select: " title slug file"
+                            }
+                        }
+                    }
+                ])
                 .sort(sort)
                 .skip(skip)
                 .limit(limit)
