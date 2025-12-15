@@ -513,6 +513,7 @@ exports.deleteVariantImage = async (req, res) => {
 };
 exports.variantList = async (req, res) => {
     try {
+        // await Variant.updateMany({}, { $set: { size_group: "693fd4641044b3dde6e12692" } })
         let {
             id,
             page = 1,

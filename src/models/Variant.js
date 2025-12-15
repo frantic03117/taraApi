@@ -1,4 +1,4 @@
-const { Schema, model } = require("mongoose");
+const { Schema, model, Types } = require("mongoose");
 
 const variantSchema = new Schema(
     {
@@ -14,7 +14,11 @@ const variantSchema = new Schema(
         color: { type: String },
         color_code: { type: String },
         size: { type: String },
-        size_group: [String],
+        size_group: {
+            type: Types.ObjectId,
+            ref: "Setting",
+            default: null
+        },
         numeric_size: { type: Number },
         fabric: { type: String },
         material: { type: String },
