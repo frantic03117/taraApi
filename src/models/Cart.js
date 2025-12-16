@@ -19,7 +19,12 @@ const cartSchema = new Schema({
         ref: 'Variant',
         default: null
     },
-
+    size: String,
+    currency: {
+        type: String,
+        enum: ['$', '€', '¥', '£', '₹', '¥', '₽'],
+        default: "₹"
+    },
     price: {
         type: Number
     },

@@ -5,6 +5,6 @@ const { get_cart_items, add_to_cart, update_cart_quantity, remove_from_cart } = 
 const router = Router();
 router.get('/', GuestAuth(), get_cart_items);
 router.post('/', GuestAuth(), add_to_cart);
-router.put('/update', GuestAuth(), update_cart_quantity);
-router.post('/delete', GuestAuth(), remove_from_cart);
+router.put('/update/:cart_id', GuestAuth(), update_cart_quantity);
+router.post('/delete/:cart_id', GuestAuth(), remove_from_cart);
 module.exports = router;

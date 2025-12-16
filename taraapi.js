@@ -30,6 +30,9 @@ const appRoute = require('./routes/AppRoutes');
 const productRoute = require('./routes/productRoute');
 const offerRoute = require('./routes/offer.routes');
 const testroute = require('./routes/Testimonial.routes');
+const cartroute = require('./routes/cart.routes');
+const voucherRoute = require('./routes/VoucherRoutes');
+const orderroute = require('./routes/order.route')
 app.use('/api/v1/banner', bannerRoute);
 app.use('/api/v1/setting', settingRoute);
 app.use('/api/v1/user', userRoute);
@@ -37,6 +40,9 @@ app.use('/api/v1/app', appRoute);
 app.use('/api/v1/product', productRoute);
 app.use('/api/v1/offer', offerRoute);
 app.use('/api/v1/testimonial', testroute);
+app.use('/api/v1/cart', cartroute);
+app.use('/api/v1/promo-code', voucherRoute);
+app.use('/api/v1/order', orderroute);
 
 
 server.listen(port, () => {

@@ -4,12 +4,13 @@ const Product = require("../models/Product");
 const Variant = require("../models/Variant");
 const Offer = require("../models/Offer");
 exports.add_to_cart = async (req, res) => {
+    // await Cart.deleteMany({})
     const session = await mongoose.startSession();
     session.startTransaction();
 
     try {
         const userId = req.user?._id || null;
-        const { product, variant, quantity = 1 } = req.body;
+        const { product, variant, quantity = 1, size } = req.body;
         const cart_token = req.headers["cart-token"];
         if (!product || !variant) {
             return res.status(400).json({ success: 0, message: "Product & Variant required" });
@@ -38,10 +39,10 @@ exports.add_to_cart = async (req, res) => {
                 is_active: true,
                 is_deleted: false,
                 in_stock: true,
-                stock: { $gte: quantity }
+                // stock: { $gte: quantity }
             },
             {
-                $inc: { stock: -quantity }
+                // $inc: { stock: -quantity }
             },
             { new: true, session }
         );
@@ -53,6 +54,7 @@ exports.add_to_cart = async (req, res) => {
         const cartQuery = {
             product,
             variant,
+            size,
             is_ordered: false,
             ...(userId ? { user: userId } : { cart_token })
         };
@@ -70,6 +72,7 @@ exports.add_to_cart = async (req, res) => {
                 product,
                 variant,
                 quantity,
+                size,
                 price: variantData.sale_price || variantData.price
             }], { session });
         }
@@ -156,7 +159,8 @@ exports.remove_from_cart = async (req, res) => {
     session.startTransaction();
     try {
         const userId = req.user?._id || null;
-        const { cart_id, cart_token } = req.body;
+        const cart_token = req.headers["cart-token"] || null;
+        const { cart_id } = req.params;
 
         if (!cart_id) {
             return res.status(400).json({
@@ -230,7 +234,7 @@ exports.get_cart_items = async (req, res) => {
             })
             .populate({
                 path: "variant",
-                select: "sku price sale_price stock in_stock is_active images"
+                select: "sku price sale_price  in_stock is_active images size size_group color"
             })
             .sort({ createdAt: -1 });
 
@@ -263,8 +267,10 @@ exports.get_cart_items = async (req, res) => {
                 product: item.product,
                 variant: item.variant,
                 quantity: item.quantity,
+                currency: item.currency,
                 price,
                 total,
+                size: item.size,
                 stock_locked_at: item.stock_locked_at
             });
         }
@@ -275,7 +281,8 @@ exports.get_cart_items = async (req, res) => {
                 items: validItems,
                 summary: {
                     subtotal,
-                    item_count: validItems.length
+                    item_count: validItems.length,
+                    currency: validItems[0]?.currency
                 }
             }
         });
@@ -290,14 +297,15 @@ exports.get_cart_items = async (req, res) => {
 };
 exports.update_cart_quantity = async (req, res) => {
     try {
-        const { cart_id, quantity } = req.body;
+        const { cart_id } = req.params;
+        const { quantity, size } = req.body;
         const userId = req.user?._id || null;
         const cartToken = req.headers["cart-token"] || null;
 
-        if (!cart_id || quantity === undefined) {
+        if (!cart_id) {
             return res.status(400).json({
                 success: 0,
-                message: "Cart ID and quantity required"
+                message: "Cart ID  required"
             });
         }
 
@@ -322,48 +330,54 @@ exports.update_cart_quantity = async (req, res) => {
                 message: "Variant unavailable"
             });
         }
+        if (quantity) {
 
-        const oldQty = cartItem.quantity;
-        const diff = quantity - oldQty;
 
-        // ❌ Remove item
-        if (quantity <= 0) {
-            await Variant.updateOne(
-                { _id: variant._id },
-                { $inc: { stock: oldQty } }
-            );
-            await Cart.deleteOne({ _id: cart_id });
+            const oldQty = cartItem.quantity;
+            const diff = quantity - oldQty;
 
-            return res.json({
-                success: 1,
-                message: "Item removed from cart"
-            });
-        }
+            // ❌ Remove item
+            if (quantity <= 0) {
+                await Variant.updateOne(
+                    { _id: variant._id },
+                    { $inc: { stock: oldQty } }
+                );
+                await Cart.deleteOne({ _id: cart_id });
 
-        // ➕ Increase quantity
-        if (diff > 0) {
-            if (variant.stock < diff) {
-                return res.status(400).json({
-                    success: 0,
-                    message: "Insufficient stock"
+                return res.json({
+                    success: 1,
+                    message: "Item removed from cart"
                 });
             }
 
-            await Variant.updateOne(
-                { _id: variant._id },
-                { $inc: { stock: -diff } }
-            );
-        }
+            // ➕ Increase quantity
+            if (diff > 0) {
+                if (variant.stock < diff) {
+                    return res.status(400).json({
+                        success: 0,
+                        message: "Insufficient stock"
+                    });
+                }
 
-        // ➖ Decrease quantity
-        if (diff < 0) {
-            await Variant.updateOne(
-                { _id: variant._id },
-                { $inc: { stock: Math.abs(diff) } }
-            );
-        }
+                await Variant.updateOne(
+                    { _id: variant._id },
+                    { $inc: { stock: -diff } }
+                );
+            }
 
-        cartItem.quantity = quantity;
+            // ➖ Decrease quantity
+            if (diff < 0) {
+                await Variant.updateOne(
+                    { _id: variant._id },
+                    { $inc: { stock: Math.abs(diff) } }
+                );
+            }
+
+            cartItem.quantity = quantity;
+        }
+        if (size) {
+            cartItem.size = size;
+        }
         await cartItem.save();
 
         return res.json({
