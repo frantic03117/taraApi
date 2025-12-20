@@ -14,7 +14,14 @@ const orderSchema = new Schema({
         ref: "User",
         default: null   // guest checkout support
     },
-
+    first_name: String,
+    last_name: String,
+    country_code: {
+        type: String,
+        default: "+91"
+    },
+    mobile: String,
+    email: String,
 
     cart_ids: [
         {
