@@ -245,3 +245,76 @@ exports.cashfreeWebhook = async (req, res) => {
         return res.status(500).send("Webhook error");
     }
 };
+exports.list_orders = async (req, res) => {
+    try {
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 10;
+        const skip = (page - 1) * limit;
+
+        // Optional filters
+        const filter = {};
+
+        if (req.query.order_status) {
+            filter.order_status = req.query.order_status;
+        }
+
+        if (req.query.payment_status) {
+            filter.payment_status = req.query.payment_status;
+        }
+
+        if (req.query.search) {
+            filter.$or = [
+                { order_id: { $regex: req.query.search, $options: "i" } },
+                { email: { $regex: req.query.search, $options: "i" } },
+                { mobile: { $regex: req.query.search, $options: "i" } }
+            ];
+        }
+
+        const [orders, total] = await Promise.all([
+            Order.find(filter)
+                .sort({ createdAt: -1 })
+                .skip(skip)
+                .limit(limit)
+                .populate([
+                    {
+                        path: "cart_ids",
+                        populate: [
+                            {
+                                path: "product",
+                                select: "name slug images"
+                            },
+                            {
+                                path: "variant",
+                                select: "sku attributes price"
+                            }
+                        ]
+                    },
+                    {
+                        path: "address",
+                    }
+                    
+                ])
+                .lean(),
+
+            Order.countDocuments(filter)
+        ]);
+
+        res.json({
+            success: true,
+            data: orders,
+            pagination: {
+                total,
+                page,
+                limit,
+                totalPages: Math.ceil(total / limit)
+            }
+        });
+
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({
+            success: false,
+            message: "Failed to fetch orders"
+        });
+    }
+};
