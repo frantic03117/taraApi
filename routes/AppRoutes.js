@@ -1,7 +1,7 @@
-const { Router } = require("express");
+const express = require("express");
+const router = express.Router();
 const { admin_login } = require("../src/controller/userController");
 const { cashfreeWebhook } = require("../src/controller/OrderController");
-const router = Router();
 router.post('/login', admin_login);
-router.post('/webhook', cashfreeWebhook);
+router.post('/webhook',  express.raw({ type: 'application/json' }), cashfreeWebhook);
 module.exports = router;
