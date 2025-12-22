@@ -101,7 +101,17 @@ const orderSchema = new Schema({
         type: String,
         default: null
     },
-
+    payment_request: {
+        type: Schema.Types.Mixed,
+        default: null
+    },
+    payment_response: {
+        type: Schema.Types.Mixed,
+        default: null
+    },
+    payment_session_id: {
+        type: String,
+    },
     paid_at: {
         type: Date,
         default: null

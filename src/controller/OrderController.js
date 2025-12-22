@@ -159,7 +159,8 @@ exports.create_order = async (req, res) => {
             amount: total_amount,
             customer: customer,
             return_url: `${FRONTEND_URL}/payment?order_id=${order[0].order_id}`
-        })
+        });
+        await Order.findOneAndUpdate({ _id: }, { $set: { payment_gateway: "cashfree", payment_request: cashfreeOrder, payment_session_id: cashfreeOrder.payment_session_id } })
         await session.commitTransaction();
         session.endSession();
 
@@ -222,10 +223,12 @@ exports.cashfreeWebhook = async (req, res) => {
             await Order.findOneAndUpdate(
                 { order_id: orderId },
                 {
+                    payment_method: "ONLINE",
                     payment_status: "PAID",
-                    order_status: "CONFIRMED",
                     payment_id: payment.cf_payment_id,
-                    payment_response: event
+                    payment_response: event,
+                    paid_at: new Date(payment.payment_time),
+                    order_status: "CONFIRMED"
                 }
             );
         }
