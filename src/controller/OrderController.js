@@ -160,7 +160,7 @@ exports.create_order = async (req, res) => {
             customer: customer,
             return_url: `${FRONTEND_URL}/payment?order_id=${order[0].order_id}`
         });
-        await Order.findOneAndUpdate({ _id: }, { $set: { payment_gateway: "cashfree", payment_request: cashfreeOrder, payment_session_id: cashfreeOrder.payment_session_id } })
+        await Order.findOneAndUpdate({ _id: order[0].order_id }, { $set: { payment_gateway: "cashfree", payment_request: cashfreeOrder, payment_session_id: cashfreeOrder.payment_session_id } })
         await session.commitTransaction();
         session.endSession();
 
