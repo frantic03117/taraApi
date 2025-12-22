@@ -47,6 +47,13 @@ const orderSchema = new Schema({
         type: Number,
         default: 0
     },
+    shipment_id: {
+        type: String
+    },
+    shipping_response: {
+        type: Schema.Types.Mixed,
+        default: null
+    },
 
     /* ───────── PRICING BREAKUP ───────── */
     subtotal: {
@@ -143,7 +150,14 @@ const orderSchema = new Schema({
         type: String,
         default: null
     },
-
+    courier: {
+        type: JSON,
+        default: null
+    },
+    shipping_request: {
+        type: JSON,
+        default: null
+    },
     shipped_at: {
         type: Date,
         default: null

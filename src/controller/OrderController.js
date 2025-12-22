@@ -160,7 +160,7 @@ exports.create_order = async (req, res) => {
             customer: customer,
             return_url: `${FRONTEND_URL}/payment?order_id=${order[0].order_id}`
         });
-        await Order.findOneAndUpdate({ _id: order[0]._id }, { $set: { order_id: order[0].order_id, payment_gateway: "cashfree", payment_request: cashfreeOrder, payment_session_id: cashfreeOrder?.payment_session_id } })
+        await Order.findOneAndUpdate({ _id: order[0]._id }, { $set: { order_id: order[0].order_id, payment_gateway: "cashfree", payment_request: JSON.stringify(cashfreeOrder), payment_session_id: cashfreeOrder?.payment_session_id } })
         await session.commitTransaction();
         session.endSession();
 
@@ -276,6 +276,41 @@ exports.list_orders = async (req, res) => {
                 { mobile: { $regex: req.query.search, $options: "i" } }
             ];
         }
+        if (req.query.order_type) {
+            switch (req.query.order_type) {
+                case 'placed':
+                    filter.order_status = 'PLACED';
+                    break;
+
+                case 'confirmed':
+                    filter.order_status = 'CONFIRMED';
+                    filter.payment_status = 'PAID';
+                    break;
+
+                case 'pending':
+                    filter.payment_status = 'PENDING';
+                    break;
+                case 'shipped':
+                    filter.order_status = 'SHIPPED';
+                    break;
+
+                case 'failed':
+                    filter.payment_status = 'FAILED';
+                    break;
+
+                case 'delivered':
+                    filter.order_status = 'DELIVERED';
+                    break;
+
+                case 'cancelled':
+                    filter.order_status = 'CANCELLED';
+                    break;
+
+                default:
+                    // no filter applied if unknown value
+                    break;
+            }
+        }
 
         const [orders, total] = await Promise.all([
             Order.find(filter)
@@ -288,11 +323,20 @@ exports.list_orders = async (req, res) => {
                         populate: [
                             {
                                 path: "product",
-                                select: "name slug images"
+                                populate: [
+                                    {
+                                        path: "category"
+                                    },
+                                    {
+                                        path: "sub_category"
+                                    },
+                                    {
+                                        path: "brand"
+                                    }
+                                ]
                             },
                             {
                                 path: "variant",
-                                select: "sku attributes price"
                             }
                         ]
                     },
@@ -325,3 +369,39 @@ exports.list_orders = async (req, res) => {
         });
     }
 };
+exports.fetch_single_order = async (req, res) => {
+    const { order_id } = req.params;
+    let filter = {};
+    filter['order_id'] = order_id;
+    const [orders, total] = await Promise.all([
+        Order.find(filter)
+            .sort({ createdAt: -1 })
+            .limit(1)
+            .populate([
+                {
+                    path: "cart_ids",
+                    populate: [
+                        {
+                            path: "product",
+                        },
+                        {
+                            path: "variant",
+                        }
+                    ]
+                },
+                {
+                    path: "address",
+                }
+
+            ])
+            .lean(),
+
+        Order.countDocuments(filter)
+    ]);
+
+    res.json({
+        success: true,
+        data: orders[0],
+        total
+    });
+}

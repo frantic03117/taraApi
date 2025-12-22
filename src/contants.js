@@ -7,6 +7,6 @@ module.exports = {
     CASHFREE_URL_TEST: "https://sandbox.cashfree.com/pg",
     CASHFREE_URL_PRODUCTION: "https://api.cashfree.com/pg",
     SHIPROCKET_PASSWORD: "DtLkV^KFBRHtsunhsEhAcu2tp3ga&MlV",
-    SHIPROCKET_ID: "Shahrukh@franticpro.com",
+    SHIPROCKET_ID: "shahrukh@franticpro.com",
     FRONTEND_URL: "http://localhost:5173/"
 };

@@ -11,9 +11,9 @@ router.get("/track/:shipment_id", trackShipment);
 router.post("/cancel", cancelShipment);
 router.get('/best-courier', getBestCourier);
 router.post(
-    '/bulk-upload',
+  '/bulk-upload',
   Store('any').single('file'),
-    bulkShipmentUpload
+  bulkShipmentUpload
 );
 
 module.exports = router;

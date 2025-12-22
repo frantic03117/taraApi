@@ -20,7 +20,9 @@ exports.createShipment = async (req, res) => {
         await Order.findOneAndUpdate(
             { order_id: req.body.order_id },
             {
-                tracking_id: shiprocketResp.data.shipment_id,
+                shipping_request: req.body,
+                shipping_response: shiprocketResp.data,
+                shipment_id: shiprocketResp.data.shipment_id,
                 courier_name: shiprocketResp.data.courier_name,
                 order_status: "SHIPPED",
                 shipped_at: new Date()
@@ -196,38 +198,87 @@ exports.cancelShipment = async (req, res) => {
 
 exports.getBestCourier = async (req, res) => {
     try {
-        const token = await getShiprocketToken();
-        const { pickup_pincode, delivery_pincode, weight, cod } = req.query;
+        const {
+            pickup_pincode,
+            delivery_pincode,
+            weight,
+            cod
+        } = req.query;
 
+        // ───────── Validation ─────────
+        if (!pickup_pincode || !delivery_pincode || !weight) {
+            return res.status(400).json({
+                success: false,
+                message: "Missing required parameters"
+            });
+        }
+
+        const token = await getShiprocketToken();
+        console.log(token);
         const resp = await axios.get(
             "https://apiv2.shiprocket.in/v1/external/courier/serviceability",
             {
-                headers: { Authorization: `Bearer ${token}` },
+                headers: {
+                    Authorization: `Bearer ${token}`
+                },
                 params: {
                     pickup_postcode: pickup_pincode,
                     delivery_postcode: delivery_pincode,
-                    weight,
-                    cod
+                    weight: Number(weight),
+                    cod: cod === 'true' || cod === 1 ? 1 : 0
                 }
             }
         );
 
-        const couriers = resp.data.data.available_courier_companies;
+        const couriers =
+            resp?.data?.data?.available_courier_companies || [];
 
-        // pick cheapest
-        const bestCourier = couriers.sort(
-            (a, b) => a.rate - b.rate
-        )[0];
+        if (!couriers.length) {
+            return res.status(404).json({
+                success: false,
+                message: "No courier available for this route"
+            });
+        }
 
-        res.json({
+        // ───────── Filter bad couriers ─────────
+        const filtered = couriers.filter(c =>
+            c.rate > 0 &&
+            c.estimated_delivery_days &&
+            c.rating >= 3
+        );
+
+        if (!filtered.length) {
+            return res.status(404).json({
+                success: false,
+                message: "No reliable courier found"
+            });
+        }
+
+        // ───────── Best courier logic ─────────
+        const bestCourier = filtered.sort((a, b) => {
+            // 1️⃣ Faster delivery first
+            if (a.estimated_delivery_days !== b.estimated_delivery_days) {
+                return a.estimated_delivery_days - b.estimated_delivery_days;
+            }
+            // 2️⃣ Cheaper if same ETA
+            return a.rate - b.rate;
+        })[0];
+
+        return res.json({
             success: true,
-            data: bestCourier
+            data: filtered
         });
 
     } catch (error) {
-        res.status(500).json({ success: false, error });
+        console.error("Shiprocket best courier error:", error?.response?.data || error);
+
+        return res.status(500).json({
+            success: false,
+            message: "Failed to fetch best courier"
+        });
     }
 };
+
 
 exports.bulkLabelDownload = async (req, res) => {
     try {
