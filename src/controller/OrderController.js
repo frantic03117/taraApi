@@ -208,27 +208,30 @@ exports.cashfreeWebhook = async (req, res) => {
         const event = req.body;
 
         console.log("Cashfree Webhook:", JSON.stringify(event));
-        logCashfreeWebhook(event)
-        // Payment success
-        if (event.type === "PAYMENT_SUCCESS") {
-            const orderId = event.data.order.order_id;
-            const paymentId = event.data.payment.cf_payment_id;
+        logCashfreeWebhook(event);
 
+        const orderId = event?.data?.order?.order_id;
+        const payment = event?.data?.payment;
+
+        if (!orderId || !payment) {
+            return res.status(400).send("Invalid payload");
+        }
+
+        // ✅ PAYMENT SUCCESS
+        if (event.type === "PAYMENT_SUCCESS_WEBHOOK") {
             await Order.findOneAndUpdate(
                 { order_id: orderId },
                 {
                     payment_status: "PAID",
                     order_status: "CONFIRMED",
-                    payment_id: paymentId,
-                    payment_response: event // save full response if you want
+                    payment_id: payment.cf_payment_id,
+                    payment_response: event
                 }
             );
         }
 
-        // Payment failed
-        if (event.type === "PAYMENT_FAILED") {
-            const orderId = event.data.order.order_id;
-
+        // ❌ PAYMENT FAILED
+        if (event.type === "PAYMENT_FAILED_WEBHOOK") {
             await Order.findOneAndUpdate(
                 { order_id: orderId },
                 {
@@ -245,6 +248,7 @@ exports.cashfreeWebhook = async (req, res) => {
         return res.status(500).send("Webhook error");
     }
 };
+
 exports.list_orders = async (req, res) => {
     try {
         const page = parseInt(req.query.page) || 1;
@@ -292,7 +296,7 @@ exports.list_orders = async (req, res) => {
                     {
                         path: "address",
                     }
-                    
+
                 ])
                 .lean(),
 
