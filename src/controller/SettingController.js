@@ -30,7 +30,6 @@ exports.create_setting = async (req, res) => {
 exports.create_or_update_settings = async (req, res) => {
     try {
         const settings = [];
-
         for (const key in req.body) {
             settings.push({
                 title: key.replace(/_/g, ' '),
@@ -38,7 +37,6 @@ exports.create_or_update_settings = async (req, res) => {
                 media_value: req.body[key]
             });
         }
-
         // Handle files
         if (req.files?.logo) {
             settings.push({
