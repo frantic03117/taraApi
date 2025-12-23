@@ -49,7 +49,7 @@ exports.get_setting = async (req, res) => {
             fdata['media_value'] = media_value;
         }
         if (type_not) {
-            fdata['type'] = { $nin: type_not }
+            fdata['type'] = { $nin: type_not.split(',') };
         }
         const resp = await Setting.find(fdata).populate('parent')
         return res.json({ success: 1, message: "Fetched successfully", data: resp })
