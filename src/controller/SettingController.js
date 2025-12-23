@@ -27,6 +27,69 @@ exports.create_setting = async (req, res) => {
         return res.json({ success: 0, message: err.message, data: req.body })
     }
 }
+exports.create_or_update_settings = async (req, res) => {
+    try {
+        const settings = [];
+
+        for (const key in req.body) {
+            settings.push({
+                title: key.replace(/_/g, ' '),
+                type: 'web',
+                media_value: req.body[key]
+            });
+        }
+
+        // Handle files
+        if (req.files?.logo) {
+            settings.push({
+                title: 'logo',
+                type: 'web',
+                media_value: req.files.logo[0].path
+            });
+        }
+
+        if (req.files?.favicon) {
+            settings.push({
+                title: 'favicon',
+                type: 'web',
+                media_value: req.files.favicon[0].path
+            });
+        }
+
+        const results = [];
+
+        for (const item of settings) {
+            const slug = makeSlug(item.title);
+
+            const existing = await Setting.findOne({ slug });
+
+            let saved;
+            if (existing) {
+                saved = await Setting.findOneAndUpdate(
+                    { slug },
+                    { $set: { ...item, slug } },
+                    { new: true }
+                );
+            } else {
+                saved = await Setting.create({ ...item, slug });
+            }
+
+            results.push(saved);
+        }
+
+        return res.json({
+            success: 1,
+            message: "Website settings saved successfully",
+            data: results
+        });
+
+    } catch (err) {
+        return res.json({ success: 0, message: err.message });
+    }
+};
+
+
+
 exports.get_setting = async (req, res) => {
     try {
 
