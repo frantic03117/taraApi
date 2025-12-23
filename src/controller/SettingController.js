@@ -34,7 +34,7 @@ exports.create_or_update_settings = async (req, res) => {
         for (const key in req.body) {
             settings.push({
                 title: key.replace(/_/g, ' '),
-                type: 'web',
+                type: key,
                 media_value: req.body[key]
             });
         }
@@ -43,7 +43,7 @@ exports.create_or_update_settings = async (req, res) => {
         if (req.files?.logo) {
             settings.push({
                 title: 'logo',
-                type: 'web',
+                type: 'logo',
                 media_value: req.files.logo[0].path
             });
         }
@@ -51,7 +51,7 @@ exports.create_or_update_settings = async (req, res) => {
         if (req.files?.favicon) {
             settings.push({
                 title: 'favicon',
-                type: 'web',
+                type: 'favicon',
                 media_value: req.files.favicon[0].path
             });
         }
