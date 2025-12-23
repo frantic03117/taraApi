@@ -47,6 +47,19 @@ exports.generateAWB = async (req, res) => {
     try {
         const { shipment_id, courier_id, order_id } = req.body;
         const token = await getShiprocketToken();
+        const shipmentDetails = await axios.get(
+            `https://apiv2.shiprocket.in/v1/external/shipments/${shipment_id}`,
+            { headers: { Authorization: `Bearer ${token}` } }
+        );
+
+        if (shipmentDetails.data.awb) {
+            return res.status(400).json({
+                data: shipmentDetails.data,
+                success: false,
+                message: "Shipment cannot be reassigned"
+            });
+        }
+
         const resp = await axios.post(
             "https://apiv2.shiprocket.in/v1/external/courier/assign/awb",
             {
@@ -293,8 +306,8 @@ exports.bulkLabelDownload = async (req, res) => {
         // fetch shipment_ids from orders
         const orders = await Order.find({
             order_id: { $in: order_ids },
-            tracking_id: { $ne: null }
-        });
+            shipment_id: { $ne: null }
+        }).select('shipment_id').lean()
 
         if (!orders.length) {
             return res.status(400).json({
@@ -303,7 +316,7 @@ exports.bulkLabelDownload = async (req, res) => {
             });
         }
 
-        const shipmentIds = orders.map(o => o.tracking_id);
+        const shipmentIds = orders.map(o => o.shipment_id);
 
         const resp = await axios.post(
             'https://apiv2.shiprocket.in/v1/external/courier/generate/label',
@@ -312,7 +325,10 @@ exports.bulkLabelDownload = async (req, res) => {
                 headers: { Authorization: `Bearer ${token}` }
             }
         );
-
+        const updated = await Order.updateMany(
+            { order_id: { $in: order_ids } },
+            { $set: { label_url: resp.data } }
+        );
         res.json({
             success: true,
             label_url: resp.data.label_url,

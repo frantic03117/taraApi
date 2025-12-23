@@ -162,6 +162,10 @@ const orderSchema = new Schema({
         type: Date,
         default: null
     },
+    label_url: {
+        type: JSON,
+        default: null
+    },
 
     delivered_at: {
         type: Date,

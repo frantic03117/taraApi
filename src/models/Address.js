@@ -24,11 +24,11 @@ const addressSchema = new Schema({
         default: null
     },
 
-    address_line1: {
+    address_one: {
         type: String,
     },
 
-    address_line2: {
+    address_two: {
         type: String,
         default: null
     },
