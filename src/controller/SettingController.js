@@ -30,7 +30,7 @@ exports.create_setting = async (req, res) => {
 exports.get_setting = async (req, res) => {
     try {
 
-        const { id, keyword, type, title, media_value, parent, page = 1, perPage = 10 } = req.query;
+        const { id, keyword, type, title, media_value, parent, page = 1, perPage = 10, type_not } = req.query;
         const fdata = {};
 
         if (type) {
@@ -47,6 +47,9 @@ exports.get_setting = async (req, res) => {
         }
         if (media_value) {
             fdata['media_value'] = media_value;
+        }
+        if (type_not) {
+            fdata['type'] = { $nin: type_not }
         }
         const resp = await Setting.find(fdata).populate('parent')
         return res.json({ success: 1, message: "Fetched successfully", data: resp })
