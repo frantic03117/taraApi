@@ -46,9 +46,7 @@ exports.createShipment = async (req, res) => {
 exports.generateAWB = async (req, res) => {
     try {
         const { shipment_id, courier_id, order_id } = req.body;
-
         const token = await getShiprocketToken();
-
         const resp = await axios.post(
             "https://apiv2.shiprocket.in/v1/external/courier/assign/awb",
             {
@@ -61,21 +59,29 @@ exports.generateAWB = async (req, res) => {
                 }
             }
         );
+        const awbresponse = resp.data;
+        if (awbresponse.awb_assign_status == 1) {
+            // Save AWB in order
+            await Order.findOneAndUpdate(
+                { order_id },
+                {
+                    courier: resp.data,
+                    tracking_id: resp.data.awb_code,
+                    courier_name: resp.data.courier_name,
+                }
+            );
 
-        // Save AWB in order
-        await Order.findOneAndUpdate(
-            { order_id },
-            {
-                tracking_id: resp.data.awb_code,
-                courier_name: resp.data.courier_name,
-                order_status: "SHIPPED"
-            }
-        );
+            res.json({
+                success: true,
+                data: resp.data
+            });
+        } else {
+            res.json({
+                success: false,
+                data: resp.data
+            });
+        }
 
-        res.json({
-            success: true,
-            data: resp.data
-        });
 
     } catch (error) {
         console.error(error?.response?.data || error);
@@ -278,7 +284,6 @@ exports.getBestCourier = async (req, res) => {
         });
     }
 };
-
 
 exports.bulkLabelDownload = async (req, res) => {
     try {

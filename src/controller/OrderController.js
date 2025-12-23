@@ -22,7 +22,7 @@ exports.create_order = async (req, res) => {
         const cart_token = req.headers["cart-token"];
         const { promo_code, address_data, gst_data = null } = req.body;
         if (!userId) {
-            user = await registerGuestUser({ first_name: address_data.first_name, last_name: address_data.last_name, email: address_data.email, country_code: "+91" });
+            user = await registerGuestUser({ first_name: address_data.first_name, last_name: address_data.last_name, email: address_data.email, mobile: address_data.mobile, country_code: "+91" });
         } else {
             user = await UserModel.findOne({ _id: userId });
         }
@@ -149,8 +149,8 @@ exports.create_order = async (req, res) => {
         let customer = {
             customer_id: user._id,
             name: user.first_name + " " + user.last_name,
-            phone: user?.mobile ?? "9084694815",
-            email: user.email
+            phone: address_data?.mobile ?? "9084694815",
+            email: address_data.email
         }
         console.log(customer)
 
