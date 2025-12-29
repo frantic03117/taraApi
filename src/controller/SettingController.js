@@ -113,7 +113,7 @@ exports.get_setting = async (req, res) => {
         if (type_not) {
             fdata['type'] = { $nin: type_not.split(',') };
         }
-        const resp = await Setting.find(fdata).populate('parent');
+        const resp = await Setting.find(fdata).populate('parent').lean();
         const slugs = resp.map(s => s.slug);
         const seoTags = await SEOTag.find({
             page_name: { $in: slugs }
