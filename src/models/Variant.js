@@ -1,4 +1,5 @@
 const { Schema, model, Types } = require("mongoose");
+const createSlug = require("../services/createSlug");
 const ImageSchema = new Schema({
     image: String,
     title: String
