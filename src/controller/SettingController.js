@@ -1,3 +1,4 @@
+const SEOTag = require("../models/SEOTag");
 const Setting = require("../models/Setting")
 const makeSlug = (title) => {
     return title
@@ -112,8 +113,21 @@ exports.get_setting = async (req, res) => {
         if (type_not) {
             fdata['type'] = { $nin: type_not.split(',') };
         }
-        const resp = await Setting.find(fdata).populate('parent')
-        return res.json({ success: 1, message: "Fetched successfully", data: resp })
+        const resp = await Setting.find(fdata).populate('parent');
+        const slugs = resp.map(s => s.slug);
+        const seoTags = await SEOTag.find({
+            page_name: { $in: slugs }
+        }).lean();
+        const seoMap = {};
+        seoTags.forEach(tag => {
+            if (!seoMap[tag.page_name]) seoMap[tag.page_name] = [];
+            seoMap[tag.page_name].push(tag);
+        });
+        const response = resp.map(s => ({
+            ...s,
+            seo: seoMap[s.slug] || []
+        }));
+        return res.json({ success: 1, message: "Fetched successfully", data: response })
     } catch (err) {
         return res.json({ success: 0, message: err.message })
     }
