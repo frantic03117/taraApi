@@ -1,5 +1,8 @@
 const { Schema, model, Types } = require("mongoose");
-
+const ImageSchema = new Schema({
+    image: String,
+    title: String
+});
 const variantSchema = new Schema(
     {
         product: {
@@ -7,7 +10,7 @@ const variantSchema = new Schema(
             ref: "Product",
 
         },
-
+        slug: String,
         sku: { type: String, unique: true, },
         barcode: { type: String, default: null },
         variant_name: { type: String },
@@ -32,7 +35,7 @@ const variantSchema = new Schema(
             of: Schema.Types.Mixed,
             default: {}
         },
-        images: [String],
+        images: [ImageSchema],
         video_url: { type: String },
         price: { type: Number, },
         sale_price: { type: Number },
@@ -50,5 +53,33 @@ const variantSchema = new Schema(
     },
     { timestamps: true }
 );
+variantSchema.pre("save", async function () {
+    if (this.isNew || this.isModified("variant_name")) {
+
+        const Variant = model("Variant");
+        const Product = model("Product");
+
+        const product = await Product.findById(this.product).select("slug");
+
+        const baseSlug = createSlug(
+            [
+                product?.slug,
+                this.variant_name,
+                this.color,
+                this.size
+            ].filter(Boolean).join("-")
+        );
+
+        let slug = baseSlug;
+        let count = 1;
+
+        while (await Variant.exists({ slug })) {
+            slug = `${baseSlug}-${count}`;
+            count++;
+        }
+
+        this.slug = slug;
+    }
+});
 
 module.exports = model("Variant", variantSchema);

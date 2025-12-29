@@ -61,23 +61,29 @@ exports.createProductWithVariants = async (req, res) => {
         await product.save();
         const variantImagesFromFiles = req.files?.variantImages || [];
         const variantImageIndexes = req.body.variantImageIndex || [];
+        const variantImageAlts = req.body.variantImageAlt || [];
         const variantIndexes = Array.isArray(variantImageIndexes)
             ? variantImageIndexes
             : [variantImageIndexes];
+        const variantAlts = Array.isArray(variantImageAlts)
+            ? variantImageAlts
+            : [variantImageAlts];
         const variantImageMap = {};
         variantImagesFromFiles.forEach((file, i) => {
             const vIndex = parseInt(variantIndexes[i], 10);
 
             if (!variantImageMap[vIndex]) variantImageMap[vIndex] = [];
 
-            variantImageMap[vIndex].push(file.path);
+            variantImageMap[vIndex].push({
+                image: file.path,
+                title: variantAlts[i] || ""   // alt tag
+            });
         });
         const variantDocs = variants.map((v, index) => ({
             ...v,
             images: variantImageMap[index] || [],
             product: product._id
         }));
-
         await Variant.insertMany(variantDocs);
 
         /* ----------------------------------------------------
