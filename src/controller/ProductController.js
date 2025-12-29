@@ -798,3 +798,17 @@ exports.filters_matrix = async (req, res) => {
 
 
 }
+exports.updateProduct = async (req, res) => {
+    try {
+        const product_id = req.body._id;
+        const { _id, ...data } = req.body;
+        const resp = await Product.findOneAndUpdate({ _id: product_id }, { $set: data });
+        return res.json({ success: 1, message: "Product updated successfully", data: resp })
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({
+            success: 0,
+            message: error.message,
+        });
+    }
+}

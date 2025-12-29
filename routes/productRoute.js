@@ -1,5 +1,5 @@
 const { Router } = require("express");
-const { createProductWithVariants, getProducts, deleteProduct, addProductVariant, addVariantImages, deleteProductVariant, variantList, deleteVariantImage, updateVariant, filters_matrix } = require("../src/controller/ProductController");
+const { createProductWithVariants, getProducts, deleteProduct, addProductVariant, addVariantImages, deleteProductVariant, variantList, deleteVariantImage, updateVariant, filters_matrix, updateProduct } = require("../src/controller/ProductController");
 const Store = require("../src/middleware/Store");
 const router = Router();
 router.post('/', Store('image').fields(
@@ -8,6 +8,7 @@ router.post('/', Store('image').fields(
         { name: "variantImages", maxCount: 100 }
     ]
 ), createProductWithVariants);
+router.put('/update', updateProduct);
 router.get('/', getProducts);
 router.delete('/delete/:id', deleteProduct);
 router.post('/variant/create/:product_id', Store('image').fields(
