@@ -35,6 +35,8 @@ const voucherRoute = require('./routes/VoucherRoutes');
 const orderroute = require('./routes/order.route');
 const shippingroute = require('./routes/shiprocket.routes');
 const seoroute = require('./routes/SEO.route');
+const voucherorute = require('./routes/VoucherRoutes');
+
 app.use('/api/v1/banner', bannerRoute);
 app.use('/api/v1/setting', settingRoute);
 app.use('/api/v1/user', userRoute);
@@ -47,6 +49,8 @@ app.use('/api/v1/promo-code', voucherRoute);
 app.use('/api/v1/order', orderroute);
 app.use('/api/v1/shipping', shippingroute);
 app.use('/api/v1/seo', seoroute);
+app.use('/api/v1/voucher', voucherorute);
+
 
 
 server.listen(port, () => {

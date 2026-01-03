@@ -1,4 +1,4 @@
-const { Schema, model } = require("mongoose");
+const { Schema, Types, model } = require("mongoose");
 
 const vschema = new Schema({
     code: String,
@@ -20,10 +20,10 @@ const vschema = new Schema({
         default: true
     },
     user: {
-        type: Schema.Types.ObjectId,
-        ref: "User",
+        type: Types.ObjectId,
+        ref: "Users",
         default: null
-    }
+    },
 }, { timestamps: true });
 
 module.exports = new model('Voucher', vschema);

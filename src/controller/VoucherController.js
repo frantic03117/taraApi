@@ -53,12 +53,30 @@ exports.createVoucher = async (req, res) => {
 // 📌 Get All Vouchers
 exports.getVouchers = async (req, res) => {
     try {
-        const vouchers = await Voucher.find().populate("therapist", "name email");
+        const vouchers = await Voucher.find()
+            .populate({
+                path: "user",
+                select: "first_name email",
+                strictPopulate: false
+            });
+
         return res.json({ success: 1, data: vouchers });
     } catch (error) {
-        return handleError(res, error, 500);
+        console.error(error.message);
+
+        return res.status(500).json({
+            success: 0,
+            message: error.message
+        });
     }
 };
+
+
+
+// const deleteAllVouchersService = async () => {
+//     return await Voucher.deleteMany({});
+// };
+// deleteAllVouchersService()
 
 // 📌 Get Single Voucher
 exports.getVoucher = async (req, res) => {
@@ -67,7 +85,7 @@ exports.getVoucher = async (req, res) => {
             return res.status(400).json({ success: 0, message: "Invalid ID" });
         }
 
-        const voucher = await Voucher.findById(req.params.id).populate("therapist", "name email");
+        const voucher = await Voucher.findById(req.params.id).populate("user", "first_name email");
         if (!voucher) return res.status(404).json({ success: 0, message: "Voucher not found" });
 
         return res.json({ success: 1, data: voucher });
@@ -116,33 +134,49 @@ exports.deleteVoucher = async (req, res) => {
     }
 };
 
-exports.updateActivation = async (req, res) => {
+
+
+
+exports.toggleVoucherActive = async (req, res) => {
     try {
         const { id } = req.params;
 
-
+        // Validate ID
         if (!mongoose.Types.ObjectId.isValid(id)) {
-            return res.status(400).json({ success: 0, message: "Invalid ID" });
+            return res.status(400).json({
+                success: 0,
+                message: "Invalid voucher ID",
+            });
         }
 
-
+        // Toggle is_active
         const voucher = await Voucher.findById(id);
+
         if (!voucher) {
-            return res.status(404).json({ success: 0, message: "Voucher not found" });
+            return res.status(404).json({
+                success: 0,
+                message: "Voucher not found",
+            });
         }
 
         voucher.is_active = !voucher.is_active;
         await voucher.save();
 
-        return res.json({
+        return res.status(200).json({
             success: 1,
             message: `Voucher ${voucher.is_active ? "enabled" : "disabled"} successfully`,
             data: voucher,
         });
     } catch (error) {
-        return handleError(res, error, 500);
+        console.error(error);
+        return res.status(500).json({
+            success: 0,
+            message: "Failed to update voucher status",
+        });
     }
 };
+
+
 exports.applyVoucher = async (req, res) => {
     try {
         const session = await mongoose.startSession();
