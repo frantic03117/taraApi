@@ -1,5 +1,6 @@
 const { Schema, model, Types } = require("mongoose");
 const createSlug = require("../services/createSlug");
+const Product = require("./Product");
 const ImageSchema = new Schema({
     image: String,
     title: String
@@ -57,10 +58,10 @@ const variantSchema = new Schema(
 variantSchema.pre("save", async function () {
     if (this.isNew || this.isModified("variant_name")) {
 
-        const Variant = model("Variant");
-        const Product = model("Product");
+        const VariantModel = this.model("Variant");
+        const ProductModel = this.model("Product");
 
-        const product = await Product.findById(this.product).select("slug");
+        const product = await ProductModel.findById(this.product).select("slug");
 
         const baseSlug = createSlug(
             [
@@ -74,7 +75,7 @@ variantSchema.pre("save", async function () {
         let slug = baseSlug;
         let count = 1;
 
-        while (await Variant.exists({ slug })) {
+        while (await VariantModel.exists({ slug })) {
             slug = `${baseSlug}-${count}`;
             count++;
         }
@@ -82,5 +83,38 @@ variantSchema.pre("save", async function () {
         this.slug = slug;
     }
 });
+variantSchema.pre("insertMany", async function (docs) {
+    const Variant = model("Variant");
+
+
+    for (const doc of docs) {
+        if (!doc.variant_name) continue;
+
+        const product = await Product
+            .findById(doc.product)
+            .select("slug");
+
+        const baseSlug = createSlug(
+            [
+                product?.slug,
+                doc.variant_name,
+                doc.color,
+                doc.size
+            ].filter(Boolean).join("-")
+        );
+
+        let slug = baseSlug;
+        let count = 1;
+
+        while (await Variant.exists({ slug })) {
+            slug = `${baseSlug}-${count}`;
+            count++;
+        }
+
+        doc.slug = slug;
+    }
+});
+
+
 
 module.exports = model("Variant", variantSchema);

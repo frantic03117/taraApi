@@ -463,3 +463,109 @@ exports.apply_offer = async (req, res) => {
         });
     }
 };
+exports.add_multi_items_to_cart = async (req, res) => {
+    const session = await mongoose.startSession();
+    session.startTransaction();
+
+    try {
+        const userId = req.user?._id || null;
+        const cart_token = req.headers["cart-token"];
+        const { variants } = req.body;
+
+        if (!Array.isArray(variants) || variants.length === 0) {
+            return res.status(400).json({
+                success: 0,
+                message: "Variants array required"
+            });
+        }
+
+        if (!userId && !cart_token) {
+            return res.status(400).json({
+                success: 0,
+                message: "Cart token required"
+            });
+        }
+
+        const addedItems = [];
+
+        for (const item of variants) {
+            const { product, variant, quantity = 1, size } = item;
+
+            if (!product || !variant) {
+                throw new Error("Product & Variant required");
+            }
+
+            /* ---------- Validate Product ---------- */
+            const productData = await Product.findOne({
+                _id: product,
+                is_active: true,
+                is_deleted: false
+            }).session(session);
+
+            if (!productData) {
+                throw new Error("Product unavailable");
+            }
+
+            /* ---------- Validate Variant ---------- */
+            const variantData = await Variant.findOne({
+                _id: variant,
+                product,
+                is_active: true,
+                is_deleted: false,
+                in_stock: true
+            }).session(session);
+
+            if (!variantData) {
+                throw new Error("Variant unavailable");
+            }
+
+            const cartQuery = {
+                product,
+                variant,
+                size,
+                is_ordered: false,
+                ...(userId ? { user: userId } : { cart_token })
+            };
+
+            let cartItem = await Cart.findOne(cartQuery).session(session);
+
+            if (cartItem) {
+                cartItem.quantity += quantity;
+                cartItem.price = variantData.sale_price || variantData.price;
+                await cartItem.save({ session });
+            } else {
+                const [newItem] = await Cart.create([{
+                    user: userId,
+                    cart_token,
+                    product,
+                    variant,
+                    quantity,
+                    size,
+                    price: variantData.sale_price || variantData.price
+                }], { session });
+
+                cartItem = newItem;
+            }
+
+            addedItems.push(cartItem);
+        }
+
+        await session.commitTransaction();
+        session.endSession();
+
+        return res.json({
+            success: 1,
+            message: "Items added to cart",
+            data: addedItems
+        });
+
+    } catch (error) {
+        await session.abortTransaction();
+        session.endSession();
+
+        return res.status(500).json({
+            success: 0,
+            message: error.message
+        });
+    }
+};

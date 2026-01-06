@@ -4,41 +4,8 @@ const Setting = require("../models/Setting");
 const Variant = require("../models/Variant");
 const fs = require("fs");
 const path = require("path");
+const isValidId = (id) => Types.ObjectId.isValid(id);
 
-
-
-
-
-
-
-/**
- * Create a product with variants
- * Expected request body:
- * {
- *   "slug": "tshirt-red",
- *   "title": "Red T-Shirt",
- *   "category": "64f8b6c1a2f1a2c123456789",
- *   "description": "High quality cotton T-shirt",
- *   "images": ["url1", "url2"],
- *   "variants": [
- *      {
- *         "sku": "TSHIRT-RED-M",
- *         "price": 499,
- *         "sale_price": 399,
- *         "stock_qty": 50,
- *         "images": ["variant1.jpg", "variant2.jpg"],
- *         "attributes": {
- *            "color": "Red",
- *            "size": "M",
- *            "fabric": "Cotton",
- *            "fit": "Regular",
- *            "sleeve": "Half Sleeve"
- *         }
- *      },
- *      {... another variant ...}
- *   ]
- * }
- */
 exports.createProductWithVariants = async (req, res) => {
     try {
         // return res.json({ data: req.files || [] })
@@ -115,7 +82,6 @@ exports.createProductWithVariants = async (req, res) => {
         });
     }
 };
-const isValidId = (id) => Types.ObjectId.isValid(id);
 
 exports.getProducts = async (req, res) => {
     try {
@@ -401,16 +367,7 @@ exports.deleteProductVariant = async (req, res) => {
                 }
             });
         }
-
-        // Remove variant
         await Variant.findByIdAndDelete(variantId);
-
-        // OPTIONAL: If no variants remain, delete product automatically
-        // const variantCount = await Variant.countDocuments({ product: productId });
-        // if (variantCount === 0) {
-        //     await Product.findByIdAndDelete(productId);
-        // }
-
         res.json({
             success: true,
             message: "Variant deleted successfully",
@@ -424,107 +381,6 @@ exports.deleteProductVariant = async (req, res) => {
         });
     }
 };
-// exports.addVariantImages = async (req, res) => {
-//     try {
-//         const { variantId } = req.params;
-//         const files = req.files.variantImages
-//         // return res.json({ success: 0, data: files })
-//         if (!variantId) {
-//             return res.status(400).json({
-//                 success: false,
-//                 message: "Variant ID is required",
-//             });
-//         }
-
-//         const variant = await Variant.findById(variantId);
-//         if (!variant) {
-//             return res.status(404).json({
-//                 success: false,
-//                 message: "Variant not found",
-//             });
-//         }
-
-//         // Collect uploaded image paths
-//         const uploadedImages = files.map(file => {
-//             return file.path;
-//         });
-
-//         // Append new images
-//         variant.images.push(...uploadedImages);
-
-//         await variant.save();
-
-//         res.json({
-//             success: true,
-//             message: "Variant images added successfully",
-//             data: variant
-//         });
-
-//     } catch (error) {
-//         console.error(error);
-//         res.status(500).json({
-//             success: false,
-//             message: error.message,
-//         });
-//     }
-// };
-// exports.deleteVariantImage = async (req, res) => {
-//     try {
-//         const { variantId } = req.params;
-//         const image = req.body.image;
-//         if (!variantId || !image) {
-//             return res.status(400).json({
-//                 success: false,
-//                 message: "Variant ID and image path are required",
-//             });
-//         }
-
-//         const variant = await Variant.findById(variantId);
-//         if (!variant) {
-//             return res.status(404).json({
-//                 success: false,
-//                 message: "Variant not found",
-//             });
-//         }
-
-//         // Check image exists in variant
-//         const imageIndex = variant.images.indexOf(image);
-//         if (imageIndex === -1) {
-//             return res.status(404).json({
-//                 success: false,
-//                 message: "Image not found in variant",
-//             });
-//         }
-
-//         // Remove from DB array
-//         variant.images.splice(imageIndex, 1);
-
-//         // Delete image file (optional)
-//         try {
-//             const fs = require("fs");
-//             fs.unlinkSync(image.replace(/^\//, "")); // remove leading slash
-//         } catch (err) {
-//             console.log("Image delete failed:", err);
-//         }
-
-//         await variant.save();
-
-//         res.json({
-//             success: true,
-//             message: "Variant image deleted successfully",
-//             data: variant
-//         });
-
-//     } catch (error) {
-//         console.error(error);
-//         res.status(500).json({
-//             success: false,
-//             message: error.message,
-//         });
-//     }
-// };
-
-
 
 exports.addVariantImages = async (req, res) => {
     try {
@@ -637,12 +493,14 @@ exports.variantList = async (req, res) => {
         // await Variant.updateMany({}, { $set: { size_group: "693fd4641044b3dde6e12692" } })
         let {
             id,
+            slug,
             page = 1,
             limit = 20,
             search = "",
             sort = "-createdAt",
             price,
             productId,
+            notIn,
             in_stock,
             is_active,
             nav_menu,
@@ -668,6 +526,9 @@ exports.variantList = async (req, res) => {
             if (!isNaN(min)) filter.sale_price.$gte = min;
             if (!isNaN(max)) filter.sale_price.$lte = max;
         }
+        if (notIn) {
+            filter._id = { $nin: notIn.split(',') };
+        }
 
         /* ----------------------------------------------
            BASE SEARCH FILTER
@@ -689,7 +550,7 @@ exports.variantList = async (req, res) => {
         if (in_stock !== undefined) filter.in_stock = in_stock === "true";
         if (is_active !== undefined) filter.is_active = is_active === "true";
         if (id) filter["_id"] = id;
-
+        if (slug) filter['slug'] = slug;
         /* ----------------------------------------------
            CATEGORY / MENU FILTERS
         -------------------------------------------------- */
@@ -949,17 +810,12 @@ exports.updateProduct = async (req, res) => {
 exports.frequentlyBoughtProducts = async (req, res) => {
     try {
         const { id } = req.params;
-
-        console.log("iisfdi", id)
-
         if (!Types.ObjectId.isValid(id)) {
             return res.status(400).json({
                 success: 0,
                 message: "Invalid product id"
             });
         }
-
-        // 1️⃣ Find current product
         const product = await Product.findById(id).lean();
         if (!product) {
             return res.status(404).json({
@@ -967,8 +823,6 @@ exports.frequentlyBoughtProducts = async (req, res) => {
                 message: "Product not found"
             });
         }
-
-        // 2️⃣ Fetch 2 related products (same category)
         const products = await Product.aggregate([
             {
                 $match: {
@@ -978,7 +832,7 @@ exports.frequentlyBoughtProducts = async (req, res) => {
                     is_active: true
                 }
             },
-            { $sample: { size: 3 } }, // 🔥 ONLY 2 ITEMS
+            { $sample: { size: 3 } },
             {
                 $lookup: {
                     from: "variants",
