@@ -92,7 +92,7 @@ exports.create_or_update_settings = async (req, res) => {
 exports.get_setting = async (req, res) => {
     try {
 
-        const { id, keyword, type, title, media_value, parent, page = 1, perPage = 10, type_not } = req.query;
+        const { id, slug, keyword, type, title, media_value, parent, page = 1, perPage = 10, type_not } = req.query;
         const fdata = {};
 
         if (type) {
@@ -103,6 +103,9 @@ exports.get_setting = async (req, res) => {
         }
         if (title) {
             fdata['title'] = { $regex: title, $options: "i" };
+        }
+        if (slug) {
+            fdata['slug'] = slug;
         }
         if (parent) {
             fdata['parent'] = parent;

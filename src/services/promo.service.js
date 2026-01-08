@@ -9,7 +9,7 @@ const Order = require("../models/Order");
 exports.validatePromo = async ({
     code,
     userId = null,
-    cartAmount,
+    cartAmount = 0,
     session = null
 }) => {
 
@@ -24,7 +24,7 @@ exports.validatePromo = async ({
         is_active: true,
         valid_from: { $lte: now },
         valid_to: { $gte: now },
-        min_cart_amount: { $lte: cartAmount }
+        // min_cart_amount: { $lte: cartAmount }
     }).session(session);
 
     if (!voucher) {

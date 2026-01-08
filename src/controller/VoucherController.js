@@ -222,7 +222,7 @@ exports.applyVoucher = async (req, res) => {
             cartAmount: subtotal,
             session
         });
-
+        console.log(promo)
         if (!promo.valid) {
             return res.status(400).json({
                 success: 0,
