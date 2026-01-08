@@ -11,6 +11,7 @@ const { CASHFREE_ENV, CASHFREE_URL_PRODUCTION, CASHFREE_URL_TEST, CASHFREE_APP_I
 const { createCashfreeOrder } = require("../services/cashfree.service");
 const { registerGuestUser } = require("../services/user.service");
 const { logCashfreeWebhook } = require("../services/webhookLogger");
+const Product = require("../models/Product");
 const BASE_URL = CASHFREE_ENV === "production" ? CASHFREE_URL_PRODUCTION : CASHFREE_URL_TEST;
 exports.create_order = async (req, res) => {
     const session = await mongoose.startSession();
@@ -404,4 +405,22 @@ exports.fetch_single_order = async (req, res) => {
         data: orders[0],
         total
     });
+}
+
+exports.dashboard = async (req, res) => {
+    try {
+        const productCounts = await Product.countDocuments({});
+        const orderCounts = await Order.countDocuments({});
+        const resp = {
+            productCounts,
+            orderCounts
+        }
+        return res.json({ data: resp, success: 1 });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({
+            success: false,
+            message: error.message
+        });
+    }
 }
