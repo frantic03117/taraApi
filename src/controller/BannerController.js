@@ -42,14 +42,15 @@ const update_banner = async (req, res) => {
     const data = { ...req.body };
     if (req.file) {
         data['image'] = req.file.path
-    } else {
-        return res.json({
-            errors: [{ path: 'image', msg: 'Image is required' }],
-            success: 0,
-            message: "Image is required",
-            data: []
-        });
     }
+    // else {
+    //     return res.json({
+    //         errors: [{ path: 'image', msg: 'Image is required' }],
+    //         success: 0,
+    //         message: "Image is required",
+    //         data: []
+    //     });
+    // }
     await Banner.updateOne({ _id: id }, data).then(resp => {
         return res.json({
             errors: [],

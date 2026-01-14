@@ -556,20 +556,33 @@ exports.variantList = async (req, res) => {
         -------------------------------------------------- */
 
         // NAV MENU -> CATEGORY -> PRODUCT -> VARIANT
+
+
+
+
         if (nav_menu) {
-            const categories = await Setting.find(
-                { parent: nav_menu, type: "category" },
-                "_id"
-            );
 
-            const categoryIds = categories.map(c => c._id);
 
-            const products = await Product.find(
-                { category: { $in: categoryIds }, is_deleted: false },
-                "_id"
-            );
+            const menu = await Setting.findOne({ slug: nav_menu, type: "nav_menu" });
 
-            filter.product = { $in: products.map(p => p._id) };
+
+
+            if (menu) {
+                const categories = await Setting.find(
+                    { parent: menu._id, type: "category" },
+                    "_id"
+                );
+
+                const categoryIds = categories.map(c => c._id);
+
+                const products = await Product.find(
+                    { category: { $in: categoryIds }, is_deleted: false },
+                    "_id"
+                );
+
+                filter.product = { $in: products.map(p => p._id) };
+            }
+
         }
 
         // CATEGORY SLUG
