@@ -2,6 +2,7 @@ const { Types } = require("mongoose");
 const Product = require("../models/Product");
 const Setting = require("../models/Setting");
 const Variant = require("../models/Variant");
+const Review = require('../models/Review')
 const fs = require("fs");
 const path = require("path");
 const isValidId = (id) => Types.ObjectId.isValid(id);
@@ -25,6 +26,14 @@ exports.createProductWithVariants = async (req, res) => {
                 return "/uploads/products/" + file.filename;
             });
         }
+
+        let sizeChart = null;
+        if (req.files?.size_chart) {
+            sizeChart = "uploads/" + req.files.size_chart[0].filename;
+        }
+
+        productData.size_chart = sizeChart;
+
         productData.images = productImages;
         if (productData.seo_keywords) {
             productData.seo_keywords = productData.seo_keywords?.split(',')
@@ -307,21 +316,42 @@ function deleteFile(filePath) {
     });
 }
 exports.addProductVariant = async (req, res) => {
-    const product_id = req.params;
+    const product_id = req.params.product_id;
     let variants = req.body.variants;
     variants = JSON.parse(variants);
+    // const variantImagesFromFiles = req.files?.variantImages || [];
+    // const variantImageIndexes = req.body.variantImageIndex || [];
+    // const variantIndexes = Array.isArray(variantImageIndexes)
+    //     ? variantImageIndexes
+    //     : [variantImageIndexes];
+    // const variantImageMap = {};
+    // variantImagesFromFiles.forEach((file, i) => {
+    //     const vIndex = parseInt(variantIndexes[i], 10);
+
+    //     if (!variantImageMap[vIndex]) variantImageMap[vIndex] = [];
+
+    //     variantImageMap[vIndex].push(file.path);
+    // });
+
     const variantImagesFromFiles = req.files?.variantImages || [];
     const variantImageIndexes = req.body.variantImageIndex || [];
+    const variantImageAlts = req.body.variantImageAlt || [];
     const variantIndexes = Array.isArray(variantImageIndexes)
         ? variantImageIndexes
         : [variantImageIndexes];
+    const variantAlts = Array.isArray(variantImageAlts)
+        ? variantImageAlts
+        : [variantImageAlts];
     const variantImageMap = {};
     variantImagesFromFiles.forEach((file, i) => {
         const vIndex = parseInt(variantIndexes[i], 10);
 
         if (!variantImageMap[vIndex]) variantImageMap[vIndex] = [];
 
-        variantImageMap[vIndex].push(file.path);
+        variantImageMap[vIndex].push({
+            image: file.path,
+            title: variantAlts[i] || ""   // alt tag
+        });
     });
     const variantDocs = variants.map((v, index) => ({
         ...v,
@@ -533,15 +563,95 @@ exports.variantList = async (req, res) => {
         /* ----------------------------------------------
            BASE SEARCH FILTER
         -------------------------------------------------- */
+        // if (search) {
+        //     filter.$or = [
+        //         { variant_name: { $regex: search, $options: "i" } },
+        //         { category: { $regex: search, $options: "i" } },
+        //         { sku: { $regex: search, $options: "i" } },
+        //         { color: { $regex: search, $options: "i" } },
+        //         { size: { $regex: search, $options: "i" } },
+        //         { barcode: { $regex: search, $options: "i" } }
+        //     ];
+        // }
+
+
         if (search) {
-            filter.$or = [
-                { variant_name: { $regex: search, $options: "i" } },
-                { sku: { $regex: search, $options: "i" } },
-                { color: { $regex: search, $options: "i" } },
-                { size: { $regex: search, $options: "i" } },
-                { barcode: { $regex: search, $options: "i" } }
+            const searchRegex = new RegExp(search, "i");
+
+            // ✅ 1) Find category/sub-category ids matching search
+            const [cats, subcats] = await Promise.all([
+                Setting.find(
+                    {
+                        type: "category",
+                        $or: [{ title: searchRegex }, { slug: searchRegex }],
+                    },
+                    "_id"
+                ),
+                Setting.find(
+                    {
+                        type: "sub-category",
+                        $or: [{ title: searchRegex }, { slug: searchRegex }],
+                    },
+                    "_id"
+                ),
+            ]);
+
+            const categoryIds = cats.map((c) => c._id);
+            const subCategoryIds = subcats.map((s) => s._id);
+
+            // ✅ 2) Find products matching search in:
+            // title, description, SEO fields, tags, plus category/subcategory match
+            const products = await Product.find(
+                {
+                    is_deleted: false,
+                    $or: [
+                        // product
+                        { title: searchRegex },
+                        { slug: searchRegex },
+                        { short_description: searchRegex },
+                        { description: searchRegex },
+
+                        // SEO
+                        { seo_title: searchRegex },
+                        { seo_description: searchRegex },
+                        { seo_keywords: { $elemMatch: { $regex: searchRegex } } },
+
+                        // tags
+                        { tags: { $elemMatch: { $regex: searchRegex } } },
+
+                        // category/subcategory matching
+                        ...(categoryIds.length ? [{ category: { $in: categoryIds } }] : []),
+                        ...(subCategoryIds.length
+                            ? [{ sub_category: { $in: subCategoryIds } }]
+                            : []),
+                    ],
+                },
+                "_id"
+            );
+
+            const productIds = products.map((p) => p._id);
+
+            // ✅ 3) Always keep variant search too
+            const variantSearch = [
+                { variant_name: { $regex: searchRegex } },
+                { sku: { $regex: searchRegex } },
+                { color: { $regex: searchRegex } },
+                { size: { $regex: searchRegex } },
+                { barcode: { $regex: searchRegex } },
             ];
+
+            // ✅ 4) Combine Product match + Variant match
+            // If productIds found => show variants from those products too
+            if (productIds.length > 0) {
+                filter.$or = [
+                    ...variantSearch,
+                    { product: { $in: productIds } }, // ✅ main part
+                ];
+            } else {
+                filter.$or = variantSearch;
+            }
         }
+
 
         /* ----------------------------------------------
            DIRECT VARIANT FILTERS
@@ -648,15 +758,15 @@ exports.variantList = async (req, res) => {
         -------------------------------------------------- */
         const skip = (page - 1) * limit;
 
-        const [variants, total] = await Promise.all([
+        let [variants, total] = await Promise.all([
             Variant.find(filter)
                 .populate([
                     {
                         path: "product",
-                        select: "name images category title slug",
+                        select: "name images category title slug description size_chart color_pattern",
                         populate: {
                             path: "category",
-                            select: "parent title slug file",
+                            select: "parent title slug file ",
                             populate: {
                                 path: "parent",
                                 select: " title slug file"
@@ -671,7 +781,39 @@ exports.variantList = async (req, res) => {
             Variant.countDocuments(filter),
         ]);
 
+        const variantIds = variants.map(v => v._id);
+
+        const reviewStats = await Review.aggregate([
+            { $match: { variant: { $in: variantIds } } },   // Review.variant
+            {
+                $group: {
+                    _id: "$variant",
+                    count: { $sum: 1 },
+                    avg_stars: { $avg: "$rating" } // ✅ change field name if yours is rating/star
+                }
+            }
+        ]);
+
+
+
+
+
+        const reviewMap = {};
+        reviewStats.forEach(r => {
+            reviewMap[r._id.toString()] = {
+                review_count: r.count,
+                avg_stars: r.avg_stars || 0
+            };
+        });
+
+
         const totalPages = Math.ceil(total / limit);
+
+        variants = variants.map(v => ({
+            ...v,
+            review_count: reviewMap[v._id.toString()]?.review_count || 0,
+            avg_stars: Number((reviewMap[v._id.toString()]?.avg_stars || 0).toFixed(1))
+        }));
 
         res.json({
             success: true,
@@ -803,20 +945,55 @@ exports.filters_matrix = async (req, res) => {
 
 
 }
+// exports.updateProduct = async (req, res) => {
+//     try {
+//         const product_id = req.body._id;
+//         const { _id, ...data } = req.body;
+
+
+
+
+//         const resp = await Product.findOneAndUpdate({ _id: product_id }, { $set: data });
+//         return res.json({ success: 1, message: "Product updated successfully", data: resp })
+//     } catch (error) {
+//         console.error(error);
+//         res.status(500).json({
+//             success: 0,
+//             message: error.message,
+//         });
+//     }
+// }
+
 exports.updateProduct = async (req, res) => {
     try {
         const product_id = req.body._id;
         const { _id, ...data } = req.body;
-        const resp = await Product.findOneAndUpdate({ _id: product_id }, { $set: data });
-        return res.json({ success: 1, message: "Product updated successfully", data: resp })
+
+        // ✅ if size chart uploaded then update it
+        if (req.files?.size_chart?.length > 0) {
+            data.size_chart = "uploads/" + req.files.size_chart[0].filename;
+        }
+
+        const resp = await Product.findOneAndUpdate(
+            { _id: product_id },
+            { $set: data },
+            { new: true } // ✅ return updated document
+        );
+
+        return res.json({
+            success: 1,
+            message: "Product updated successfully",
+            data: resp,
+        });
     } catch (error) {
         console.error(error);
-        res.status(500).json({
+        return res.status(500).json({
             success: 0,
             message: error.message,
         });
     }
-}
+};
+
 
 
 

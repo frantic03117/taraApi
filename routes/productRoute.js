@@ -1,20 +1,32 @@
 const { Router } = require("express");
 const { createProductWithVariants, getProducts, deleteProduct, addProductVariant, addVariantImages, deleteProductVariant, variantList, deleteVariantImage, updateVariant, filters_matrix, updateProduct, frequentlyBoughtProducts } = require("../src/controller/ProductController");
 const Store = require("../src/middleware/Store");
+const { getRecentlySeen, saveRecentlySeen } = require("../src/controller/RecentlySeenController");
+const { GuestAuth } = require("../src/middleware/GuestAuth");
+const { Auth } = require("../src/middleware/Auth");
 const router = Router();
 router.post('/', Store('image').fields(
     [
         { name: "productImages", maxCount: 20 },
-        { name: "variantImages", maxCount: 100 }
+        { name: "variantImages", maxCount: 100 },
+        { name: "size_chart", maxCount: 1 }
+
     ]
 ), createProductWithVariants);
-router.put('/update', updateProduct);
+router.put('/update', Store('image').fields(
+    [
+
+        { name: "size_chart", maxCount: 1 }
+
+    ]
+), updateProduct);
 router.get('/', getProducts);
 router.delete('/delete/:id', deleteProduct);
 router.post('/variant/create/:product_id', Store('image').fields(
     [
         { name: "productImages", maxCount: 20 },
-        { name: "variantImages", maxCount: 100 }
+        { name: "variantImages", maxCount: 100 },
+
     ]
 ), addProductVariant);
 router.post('/variant/images/:variantId', Store('image').fields(
@@ -30,4 +42,9 @@ router.get('/filter-matrix', filters_matrix);
 router.put('/variant/update/:variantId', Store('image').any(), updateVariant)
 
 router.get('/frequently-bought-product/:id', frequentlyBoughtProducts)
+
+router.post("/recently-seen/:productId", GuestAuth(), saveRecentlySeen);
+
+router.get("/recently-seen", GuestAuth(), getRecentlySeen);
+
 module.exports = router;

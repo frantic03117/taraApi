@@ -6,6 +6,8 @@ const Address = require("../models/Address");
 const GstModel = require("../models/Gst.model");
 const Order = require("../models/Order");
 const Cart = require("../models/Cart");
+const Wishlist = require("../models/Wishlist");
+
 const UserModel = require('../models/Users');
 const { CASHFREE_ENV, CASHFREE_URL_PRODUCTION, CASHFREE_URL_TEST, CASHFREE_APP_ID, CASHFREE_SECRET_KEY, FRONTEND_URL } = require("../contants");
 const { createCashfreeOrder } = require("../services/cashfree.service");
@@ -529,20 +531,74 @@ exports.fetch_single_order = async (req, res) => {
     });
 }
 
+// exports.dashboard = async (req, res) => {
+//     try {
+//         const productCounts = await Product.countDocuments({ is_deleted: false, is_active: true });
+//         console.log("product", productCounts)
+//         const orderCounts = await Order.countDocuments({});
+//         const resp = {
+//             productCounts,
+//             orderCounts
+//         }
+//         return res.json({ data: resp, success: 1 });
+//     } catch (error) {
+//         console.error(error);
+//         res.status(500).json({
+//             success: false,
+//             message: error.message
+//         });
+//     }
+// }
+
+
 exports.dashboard = async (req, res) => {
     try {
-        const productCounts = await Product.countDocuments({});
-        const orderCounts = await Order.countDocuments({});
-        const resp = {
-            productCounts,
-            orderCounts
+        const userId = req.user?._id || null;
+
+        // ✅ from query
+        const type = req.query.type || "user";
+
+        // ✅ admin mode only when type=admin
+        const isAdmin = type === "admin";
+
+        const resp = {};
+
+        // ✅ ADMIN DASHBOARD
+        if (isAdmin) {
+            const productCounts = await Product.countDocuments({
+                is_deleted: false,
+                is_active: true,
+            });
+
+            const orderCounts = await Order.countDocuments({});
+
+            resp.productCounts = productCounts;
+            resp.orderCounts = orderCounts;
+
+            return res.json({ success: 1, data: resp });
         }
-        return res.json({ data: resp, success: 1 });
+
+        // ✅ USER DASHBOARD
+        if (!userId) {
+            return res.status(401).json({ success: 0, message: "Unauthorized" });
+        }
+
+        const orderCounts = await Order.countDocuments({ user: userId });
+        const wishlistCounts = await Wishlist.countDocuments({ user: userId });
+
+        resp.orderCounts = orderCounts;
+        resp.wishlistCounts = wishlistCounts;
+
+        return res.json({ success: 1, data: resp });
     } catch (error) {
         console.error(error);
-        res.status(500).json({
-            success: false,
-            message: error.message
+        return res.status(500).json({
+            success: 0,
+            message: error.message,
         });
     }
-}
+};
+
+
+
+
