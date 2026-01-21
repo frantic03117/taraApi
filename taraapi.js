@@ -39,7 +39,7 @@ const voucherorute = require('./routes/VoucherRoutes');
 const blogroutes = require('./routes/blogRoutes');
 const reviewroutes = require('./routes/reviewRoutes');
 const wishlistroutes = require('./routes/WishlistRoutes');
-
+const subscribeRoute = require('./routes/subscribeRoute');
 
 
 
@@ -60,6 +60,7 @@ app.use('/api/v1/voucher', voucherorute);
 app.use('/api/v1/blog', blogroutes);
 app.use('/api/v1/review', reviewroutes);
 app.use('/api/v1/wishlist', wishlistroutes);
+app.use('/api/v1/subscribe', subscribeRoute);
 
 
 
