@@ -50,6 +50,3 @@ exports.saveConversionRate = async (req, res) => {
         });
     }
 };
-module.exports = {
-    saveConversionRate
-}
