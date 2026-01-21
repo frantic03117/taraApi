@@ -21,6 +21,14 @@ const productSchema = new Schema({
         type: String,
         default: null,
     },
+    size_chart: {
+        type: String,
+        default: null,
+    },
+    color_pattern: {
+        type: String,
+        default: null,
+    },
     tags: [String],
     short_description: {
         type: String,
@@ -59,6 +67,7 @@ const productSchema = new Schema({
         type: String,
         default: null,
     },
+
     seo_title: String,
     seo_description: String,
     seo_keywords: [String],

@@ -6,6 +6,8 @@ const Address = require("../models/Address");
 const GstModel = require("../models/Gst.model");
 const Order = require("../models/Order");
 const Cart = require("../models/Cart");
+const Wishlist = require("../models/Wishlist");
+
 const UserModel = require('../models/Users');
 const { CASHFREE_ENV, CASHFREE_URL_PRODUCTION, CASHFREE_URL_TEST, CASHFREE_APP_ID, CASHFREE_SECRET_KEY, FRONTEND_URL } = require("../contants");
 const { createCashfreeOrder } = require("../services/cashfree.service");
@@ -253,14 +255,150 @@ exports.cashfreeWebhook = async (req, res) => {
     }
 };
 
+// exports.list_orders = async (req, res) => {
+//     try {
+
+//         console.log('user', req.user._id)
+//         const page = parseInt(req.query.page) || 1;
+//         const limit = parseInt(req.query.limit) || 10;
+//         const skip = (page - 1) * limit;
+
+//         // Optional filters
+//         const filter = {};
+
+//         if (req.query.order_status) {
+//             filter.order_status = req.query.order_status;
+//         }
+
+//         if (req.query.payment_status) {
+//             filter.payment_status = req.query.payment_status;
+//         }
+
+//         if (req.query.search) {
+//             filter.$or = [
+//                 { order_id: { $regex: req.query.search, $options: "i" } },
+//                 { email: { $regex: req.query.search, $options: "i" } },
+//                 { mobile: { $regex: req.query.search, $options: "i" } }
+//             ];
+//         }
+//         if (req.query.order_type) {
+//             switch (req.query.order_type) {
+//                 case 'placed':
+//                     filter.order_status = 'PLACED';
+//                     break;
+
+//                 case 'confirmed':
+//                     filter.order_status = 'CONFIRMED';
+//                     filter.payment_status = 'PAID';
+//                     break;
+
+//                 case 'pending':
+//                     filter.payment_status = 'PENDING';
+//                     break;
+//                 case 'shipped':
+//                     filter.order_status = 'SHIPPED';
+//                     break;
+
+//                 case 'failed':
+//                     filter.payment_status = 'FAILED';
+//                     break;
+
+//                 case 'delivered':
+//                     filter.order_status = 'DELIVERED';
+//                     break;
+
+//                 case 'cancelled':
+//                     filter.order_status = 'CANCELLED';
+//                     break;
+
+//                 default:
+//                     // no filter applied if unknown value
+//                     break;
+//             }
+//         }
+
+//         const [orders, total] = await Promise.all([
+//             Order.find(filter)
+//                 .sort({ createdAt: -1 })
+//                 .skip(skip)
+//                 .limit(limit)
+//                 .populate([
+//                     {
+//                         path: "cart_ids",
+//                         populate: [
+//                             {
+//                                 path: "product",
+//                                 populate: [
+//                                     {
+//                                         path: "category"
+//                                     },
+//                                     {
+//                                         path: "sub_category"
+//                                     },
+//                                     {
+//                                         path: "brand"
+//                                     }
+//                                 ]
+//                             },
+//                             {
+//                                 path: "variant",
+//                             }
+//                         ]
+//                     },
+//                     {
+//                         path: "address",
+//                     }
+
+//                 ])
+//                 .lean(),
+
+//             Order.countDocuments(filter)
+//         ]);
+
+//         res.json({
+//             success: true,
+//             data: orders,
+//             pagination: {
+//                 total,
+//                 page,
+//                 limit,
+//                 totalPages: Math.ceil(total / limit)
+//             }
+//         });
+
+//     } catch (error) {
+//         console.error(error);
+//         res.status(500).json({
+//             success: false,
+//             message: "Failed to fetch orders"
+//         });
+//     }
+// };
+
+
+
+
 exports.list_orders = async (req, res) => {
     try {
+        console.log("user", req.user?._id);
+
         const page = parseInt(req.query.page) || 1;
         const limit = parseInt(req.query.limit) || 10;
         const skip = (page - 1) * limit;
 
-        // Optional filters
+        // ✅ Optional filters
         const filter = {};
+
+        // ✅ admin check
+        const isAdminRequest = req.query.admin === "true";
+
+        // ⚠️ Make sure user is actually admin (change according to your user schema)
+        const isAdminUser = req.user?.role === "Admin" || req.user?.is_admin === true;
+
+        // ✅ If not admin request OR not admin user → show only logged-in user's orders
+        if (!(isAdminRequest && isAdminUser)) {
+            filter.user = req.user._id;
+        }
 
         if (req.query.order_status) {
             filter.order_status = req.query.order_status;
@@ -274,41 +412,42 @@ exports.list_orders = async (req, res) => {
             filter.$or = [
                 { order_id: { $regex: req.query.search, $options: "i" } },
                 { email: { $regex: req.query.search, $options: "i" } },
-                { mobile: { $regex: req.query.search, $options: "i" } }
+                { mobile: { $regex: req.query.search, $options: "i" } },
             ];
         }
+
         if (req.query.order_type) {
             switch (req.query.order_type) {
-                case 'placed':
-                    filter.order_status = 'PLACED';
+                case "placed":
+                    filter.order_status = "PLACED";
                     break;
 
-                case 'confirmed':
-                    filter.order_status = 'CONFIRMED';
-                    filter.payment_status = 'PAID';
+                case "confirmed":
+                    filter.order_status = "CONFIRMED";
+                    filter.payment_status = "PAID";
                     break;
 
-                case 'pending':
-                    filter.payment_status = 'PENDING';
-                    break;
-                case 'shipped':
-                    filter.order_status = 'SHIPPED';
+                case "pending":
+                    filter.payment_status = "PENDING";
                     break;
 
-                case 'failed':
-                    filter.payment_status = 'FAILED';
+                case "shipped":
+                    filter.order_status = "SHIPPED";
                     break;
 
-                case 'delivered':
-                    filter.order_status = 'DELIVERED';
+                case "failed":
+                    filter.payment_status = "FAILED";
                     break;
 
-                case 'cancelled':
-                    filter.order_status = 'CANCELLED';
+                case "delivered":
+                    filter.order_status = "DELIVERED";
+                    break;
+
+                case "cancelled":
+                    filter.order_status = "CANCELLED";
                     break;
 
                 default:
-                    // no filter applied if unknown value
                     break;
             }
         }
@@ -324,52 +463,37 @@ exports.list_orders = async (req, res) => {
                         populate: [
                             {
                                 path: "product",
-                                populate: [
-                                    {
-                                        path: "category"
-                                    },
-                                    {
-                                        path: "sub_category"
-                                    },
-                                    {
-                                        path: "brand"
-                                    }
-                                ]
+                                populate: [{ path: "category" }, { path: "sub_category" }, { path: "brand" }],
                             },
-                            {
-                                path: "variant",
-                            }
-                        ]
+                            { path: "variant" },
+                        ],
                     },
-                    {
-                        path: "address",
-                    }
-
+                    { path: "address" },
                 ])
                 .lean(),
-
-            Order.countDocuments(filter)
+            Order.countDocuments(filter),
         ]);
 
         res.json({
             success: true,
             data: orders,
+            filter,
             pagination: {
                 total,
                 page,
                 limit,
-                totalPages: Math.ceil(total / limit)
-            }
+                totalPages: Math.ceil(total / limit),
+            },
         });
-
     } catch (error) {
         console.error(error);
         res.status(500).json({
             success: false,
-            message: "Failed to fetch orders"
+            message: "Failed to fetch orders",
         });
     }
 };
+
 exports.fetch_single_order = async (req, res) => {
     const { order_id } = req.params;
     let filter = {};
@@ -407,20 +531,74 @@ exports.fetch_single_order = async (req, res) => {
     });
 }
 
+// exports.dashboard = async (req, res) => {
+//     try {
+//         const productCounts = await Product.countDocuments({ is_deleted: false, is_active: true });
+//         console.log("product", productCounts)
+//         const orderCounts = await Order.countDocuments({});
+//         const resp = {
+//             productCounts,
+//             orderCounts
+//         }
+//         return res.json({ data: resp, success: 1 });
+//     } catch (error) {
+//         console.error(error);
+//         res.status(500).json({
+//             success: false,
+//             message: error.message
+//         });
+//     }
+// }
+
+
 exports.dashboard = async (req, res) => {
     try {
-        const productCounts = await Product.countDocuments({});
-        const orderCounts = await Order.countDocuments({});
-        const resp = {
-            productCounts,
-            orderCounts
+        const userId = req.user?._id || null;
+
+        // ✅ from query
+        const type = req.query.type || "user";
+
+        // ✅ admin mode only when type=admin
+        const isAdmin = type === "admin";
+
+        const resp = {};
+
+        // ✅ ADMIN DASHBOARD
+        if (isAdmin) {
+            const productCounts = await Product.countDocuments({
+                is_deleted: false,
+                is_active: true,
+            });
+
+            const orderCounts = await Order.countDocuments({});
+
+            resp.productCounts = productCounts;
+            resp.orderCounts = orderCounts;
+
+            return res.json({ success: 1, data: resp });
         }
-        return res.json({ data: resp, success: 1 });
+
+        // ✅ USER DASHBOARD
+        if (!userId) {
+            return res.status(401).json({ success: 0, message: "Unauthorized" });
+        }
+
+        const orderCounts = await Order.countDocuments({ user: userId });
+        const wishlistCounts = await Wishlist.countDocuments({ user: userId });
+
+        resp.orderCounts = orderCounts;
+        resp.wishlistCounts = wishlistCounts;
+
+        return res.json({ success: 1, data: resp });
     } catch (error) {
         console.error(error);
-        res.status(500).json({
-            success: false,
-            message: error.message
+        return res.status(500).json({
+            success: 0,
+            message: error.message,
         });
     }
-}
+};
+
+
+
+

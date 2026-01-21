@@ -36,7 +36,13 @@ const orderroute = require('./routes/order.route');
 const shippingroute = require('./routes/shiprocket.routes');
 const seoroute = require('./routes/SEO.route');
 const voucherorute = require('./routes/VoucherRoutes');
-const esubscribe = require('./routes/subscribeRoute');
+const blogroutes = require('./routes/blogRoutes');
+const reviewroutes = require('./routes/reviewRoutes');
+const wishlistroutes = require('./routes/WishlistRoutes');
+
+
+
+
 
 app.use('/api/v1/banner', bannerRoute);
 app.use('/api/v1/setting', settingRoute);
@@ -51,7 +57,12 @@ app.use('/api/v1/order', orderroute);
 app.use('/api/v1/shipping', shippingroute);
 app.use('/api/v1/seo', seoroute);
 app.use('/api/v1/voucher', voucherorute);
-app.use('/api/v1/subscribe', esubscribe);
+app.use('/api/v1/blog', blogroutes);
+app.use('/api/v1/review', reviewroutes);
+app.use('/api/v1/wishlist', wishlistroutes);
+
+
+
 
 
 
