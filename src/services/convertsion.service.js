@@ -2,7 +2,7 @@ const fetchCurrencies = async () => {
     try {
         const response = await fetch(
             "https://api.freecurrencyapi.com/v1/latest?apikey=" +
-            process.env.CURRENCY_API_KEY
+            "fca_live_FYtD9Ne6Ar2MUoVlSLFUq67GJbJjg1jqSmbmdRBw"
         );
 
         if (!response.ok) {
