@@ -80,12 +80,19 @@ const orderSchema = new Schema({
         type: Number,
         required: true
     },
+    convert_currency_amount: {
+        type: Number,
+        default: 0
+    },
 
     currency: {
         type: String,
         default: "₹"
     },
-
+    user_selected_currency: {
+        type: String,
+        default: "INR"
+    },
     /* ───────── PAYMENT INFO ───────── */
     payment_method: {
         type: String,

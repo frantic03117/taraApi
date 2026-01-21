@@ -10,7 +10,7 @@ exports.add_to_cart = async (req, res) => {
 
     try {
         const userId = req.user?._id || null;
-        const { product, variant, quantity = 1, size } = req.body;
+        const { product, variant, quantity = 1, size, user_selected_currency = "INR" } = req.body;
         const cart_token = req.headers["cart-token"];
         if (!product || !variant) {
             return res.status(400).json({ success: 0, message: "Product & Variant required" });
@@ -55,6 +55,7 @@ exports.add_to_cart = async (req, res) => {
             product,
             variant,
             size,
+            user_selected_currency,
             is_ordered: false,
             ...(userId ? { user: userId } : { cart_token })
         };
@@ -71,6 +72,7 @@ exports.add_to_cart = async (req, res) => {
                 cart_token,
                 product,
                 variant,
+                user_selected_currency,
                 quantity,
                 size,
                 price: variantData.sale_price || variantData.price

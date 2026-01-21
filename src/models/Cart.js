@@ -20,9 +20,12 @@ const cartSchema = new Schema({
         default: null
     },
     size: String,
+    user_selected_currency: {
+        type: String,
+        default: "INR"
+    },
     currency: {
         type: String,
-        enum: ['$', '€', '¥', '£', '₹', '¥', '₽'],
         default: "₹"
     },
     price: {

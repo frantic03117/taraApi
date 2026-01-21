@@ -23,7 +23,7 @@ exports.create_order = async (req, res) => {
         const userId = req.user?._id || null;
         let user;
         const cart_token = req.headers["cart-token"];
-        const { promo_code, address_data, gst_data = null } = req.body;
+        const { promo_code, address_data, gst_data = null, currency = "INR" } = req.body;
         if (!userId) {
             user = await registerGuestUser({ first_name: address_data.first_name, last_name: address_data.last_name, email: address_data.email, mobile: address_data.mobile, country_code: "+91" });
         } else {
@@ -122,6 +122,7 @@ exports.create_order = async (req, res) => {
             total_amount,
             subtotal: subtotal,
             currency: carts[0].currency,
+            user_selected_currency: currency,
             promo_code: applied_promo,
             promo_discount,
             order_status: "PENDING",
@@ -132,7 +133,7 @@ exports.create_order = async (req, res) => {
             mobile: address_data.mobile,
             email: address_data.email,
         };
-        console.log(orderObject)
+
         const order = await Order.create([orderObject], { session });
 
         /* --------------------------------
@@ -160,6 +161,7 @@ exports.create_order = async (req, res) => {
         const cashfreeOrder = await createCashfreeOrder({
             order_id: order[0].order_id,
             amount: total_amount,
+            order_currency: currency,
             customer: customer,
             return_url: `${FRONTEND_URL}/payment?order_id=${order[0].order_id}`
         });
