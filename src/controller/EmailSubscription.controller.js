@@ -31,7 +31,7 @@ exports.createSubscription = async (req, res) => {
             }
         }
 
-        await Subscription.create({ email });
+        await EmailSubscription.create({ email });
 
         return res.status(201).json({
             success: true,

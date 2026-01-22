@@ -14,7 +14,18 @@ const { createCashfreeOrder } = require("../services/cashfree.service");
 const { registerGuestUser } = require("../services/user.service");
 const { logCashfreeWebhook } = require("../services/webhookLogger");
 const Product = require("../models/Product");
+const ConversionRateModel = require("../models/ConversionRate.model");
 const BASE_URL = CASHFREE_ENV === "production" ? CASHFREE_URL_PRODUCTION : CASHFREE_URL_TEST;
+const convertPrice = (priceInINR = 0, inr, currecyrate, currency) => {
+    const inrRate = Number(inr || 1);
+    const selectedRate = Number(currecyrate || 1);
+
+    // INR -> INR
+    if (currency === "INR") return Number(priceInINR).toFixed(2);
+
+    // Formula: INR * (selectedRate / inrRate)
+    return ((Number(priceInINR) * selectedRate) / inrRate).toFixed(2);
+};
 exports.create_order = async (req, res) => {
     const session = await mongoose.startSession();
     session.startTransaction();
@@ -105,9 +116,15 @@ exports.create_order = async (req, res) => {
         }
 
         /* --------------------------------
-           Final Amount
+           Final Amount in INR ned to convert in 
         --------------------------------- */
         const total_amount = Math.max(subtotal - promo_discount, 0);
+        const findINRRate = await ConversionRateModel.findOne({ currency: "INR" });
+        const findCurrecyRate = await ConversionRateModel.findOne({ currency });
+        const convertedRateamount = convertPrice(total_amount, findINRRate.rate, findCurrecyRate.rate, currency);
+
+
+
 
         /* --------------------------------
            Create Order
@@ -123,6 +140,7 @@ exports.create_order = async (req, res) => {
             subtotal: subtotal,
             currency: carts[0].currency,
             user_selected_currency: currency,
+            convert_currency_amount: convertedRateamount,
             promo_code: applied_promo,
             promo_discount,
             order_status: "PENDING",
@@ -153,18 +171,21 @@ exports.create_order = async (req, res) => {
         let customer = {
             customer_id: user._id,
             name: user.first_name + " " + user.last_name,
-            phone: address_data?.mobile ?? "9084694815",
+            phone: address_data?.mobile,
             email: address_data.email
         }
         console.log(customer)
 
         const cashfreeOrder = await createCashfreeOrder({
             order_id: order[0].order_id,
-            amount: total_amount,
+            amount: convertedRateamount,
             order_currency: currency,
             customer: customer,
             return_url: `${FRONTEND_URL}/payment?order_id=${order[0].order_id}`
         });
+
+
+
         await Order.findOneAndUpdate({ _id: order[0]._id }, { $set: { order_id: order[0].order_id, payment_gateway: "cashfree", payment_request: JSON.stringify(cashfreeOrder), payment_session_id: cashfreeOrder?.payment_session_id } })
         await session.commitTransaction();
         session.endSession();

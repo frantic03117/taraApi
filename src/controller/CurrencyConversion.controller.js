@@ -34,12 +34,23 @@ exports.saveConversionRate = async (req, res) => {
             await ConversionRateModel.bulkWrite(bulkOps);
         }
 
+
+
         // Always serve from DB
-        const rate = await ConversionRateModel.findOne({ currency });
+        // const rate = await ConversionRateModel.findOne({ currency });
+
+        const data = await ConversionRateModel.find({
+            currency: { $in: ["INR", currency] },
+        });
+        const inr = data.find((x) => x.currency === "INR") || null;
+        const selected = data.find((x) => x.currency === currency) || null;
 
         return res.json({
             success: 1,
-            data: rate
+            data: {
+                inr,
+                selected,
+            },
         });
 
     } catch (error) {
