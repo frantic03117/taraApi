@@ -16,7 +16,7 @@ database.on('disconnected', () => {
     console.log('Database disconnected');
 });
 process.env.TZ = "Asia/Kolkata";
-const port = 6300;
+const port = 3000;
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(cors());
 app.use(express.json());
