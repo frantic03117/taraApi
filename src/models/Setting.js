@@ -1,7 +1,7 @@
 const { Schema, model } = require("mongoose");
 
 const schema = new Schema({
-    order : Number,
+    order: Number,
     parent: {
         type: Schema.Types.ObjectId,
         ref: "Setting",
@@ -18,6 +18,9 @@ const schema = new Schema({
     },
     media_value: {
         type: String
+    },
+    return_url: {
+        type: String,
     },
     file: {
         type: String

@@ -265,25 +265,25 @@ exports.deleteProduct = async (req, res) => {
         }
 
         // 2. Delete product images
-        if (product.images && product.images.length > 0) {
-            product.images.forEach((imgPath) => {
-                const filePath = path.join(__dirname, "..", imgPath);
-                deleteFile(filePath);
-            });
-        }
+        // if (product.images && product.images.length > 0) {
+        //     product.images.forEach((imgPath) => {
+        //         const filePath = path.join(__dirname, "..", imgPath);
+        //         deleteFile(filePath);
+        //     });
+        // }
 
         // 3. Find variants linked to product
         const variants = await Variant.find({ product: productId });
 
         // 4. Delete variant images
-        variants.forEach((variant) => {
-            if (variant.images && variant.images.length > 0) {
-                variant.images.forEach((imgPath) => {
-                    const filePath = path.join(__dirname, "..", imgPath);
-                    deleteFile(filePath);
-                });
-            }
-        });
+        // variants.forEach((variant) => {
+        //     if (variant.images && variant.images.length > 0) {
+        //         variant.images.forEach((imgPath) => {
+        //             const filePath = path.join(__dirname, "..", imgPath);
+        //             deleteFile(filePath);
+        //         });
+        //     }
+        // });
 
         // 5. Delete variants from DB
         await Variant.deleteMany({ product: productId });
