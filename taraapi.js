@@ -42,6 +42,8 @@ const wishlistroutes = require('./routes/WishlistRoutes');
 const subscribeRoute = require('./routes/subscribeRoute');
 const contactRoute = require('./routes/contactRoutes');
 const policyRoute = require('./routes/PolicyRoutes');
+const sectionRoute = require('./routes/sectionRoutes');
+const pageContentRoute = require('./routes/pageContentRoutes');
 
 
 
@@ -66,6 +68,8 @@ app.use('/api/v1/wishlist', wishlistroutes);
 app.use('/api/v1/subscribe', subscribeRoute);
 app.use('/api/v1/contact', contactRoute);
 app.use('/api/v1/policy', policyRoute);
+app.use('/api/v1/section', sectionRoute);
+app.use('/api/v1/page-content', pageContentRoute);
 
 
 
