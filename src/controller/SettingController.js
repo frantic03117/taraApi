@@ -117,24 +117,37 @@ exports.get_setting = async (req, res) => {
             fdata['type'] = { $nin: type_not.split(',') };
         }
         const resp = await Setting.find(fdata).populate('parent').lean();
-        const slugs = resp.map(s => s.slug);
-        const seoTags = await SEOTag.find({
-            page_name: { $in: slugs }
-        }).lean();
-        const seoMap = {};
-        seoTags.forEach(tag => {
-            if (!seoMap[tag.page_name]) seoMap[tag.page_name] = [];
-            seoMap[tag.page_name].push(tag);
-        });
-        const response = resp.map(s => ({
-            ...s,
-            seo: seoMap[s.slug] || []
-        }));
-        return res.json({ success: 1, message: "Fetched successfully", data: response })
+        const data = await Promise.all(
+            resp.map(async (s) => {
+
+                const [seo, child_category_count] = await Promise.all([
+                    SEOTag.find({ page_name: s.slug }).lean(),
+                    Setting.countDocuments({ parent: s._id, isActive: true }),
+                    // 3rd check here
+                ]);
+
+                return { ...s, seo, seo_updated: seo.some(t => t.title?.trim() || t.description?.trim()), child_category_count };
+            })
+        );
+        // const slugs = resp.map(s => s.slug);
+        // const seoTags = await SEOTag.find({
+        //     page_name: { $in: slugs }
+        // }).lean();
+        // const seoMap = {};
+        // seoTags.forEach(tag => {
+        //     if (!seoMap[tag.page_name]) seoMap[tag.page_name] = [];
+        //     seoMap[tag.page_name].push(tag);
+        // });
+        // const response = resp.map(s => ({
+        //     ...s,
+        //     seo: seoMap[s.slug] || []
+        // }));
+        return res.json({ success: 1, message: "Fetched successfully", data: data })
     } catch (err) {
         return res.json({ success: 0, message: err.message })
     }
 }
+
 exports.delete_setting = async (req, res) => {
     try {
         const resp = await Setting.deleteOne({ _id: req.params.id });

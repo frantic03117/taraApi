@@ -12,29 +12,30 @@ const makeSlug = (title) => {
 // Create a new section
 exports.create_section = async (req, res) => {
     try {
-        const fields = ['title', 'description', 'heading'];
+        const fields = ['title', 'heading'];
         const emptyFields = fields.filter(field => !req.body[field]);
-        
+
         if (emptyFields.length > 0) {
-            return res.json({ 
-                success: 0, 
-                message: 'The following fields are required:', 
-                fields: emptyFields 
+            return res.json({
+                success: 0,
+                message: 'The following fields are required:',
+                fields: emptyFields
             });
         }
 
         const slug = makeSlug(req.body.title);
-        
+
         // Check if section already exists
-        const existingSection = await Section.findOne({ slug });
-        if (existingSection) {
-            return res.json({ 
-                success: 0, 
-                message: 'A section with this title already exists' 
-            });
-        }
+        // const existingSection = await Section.findOne({ slug });
+        // if (existingSection) {
+        //     return res.json({
+        //         success: 0,
+        //         message: 'A section with this title already exists'
+        //     });
+        // }
 
         const section = await Section.create({
+            ...req.body,
             title: req.body.title,
             slug: slug,
             description: req.body.description,
@@ -42,16 +43,16 @@ exports.create_section = async (req, res) => {
             isActive: req.body.isActive !== undefined ? req.body.isActive : true
         });
 
-        return res.json({ 
-            success: 1, 
-            message: "Section created successfully", 
-            data: section 
+        return res.json({
+            success: 1,
+            message: "Section created successfully",
+            data: section
         });
     } catch (err) {
-        return res.json({ 
-            success: 0, 
-            message: err.message, 
-            data: req.body 
+        return res.json({
+            success: 0,
+            message: err.message,
+            data: req.body
         });
     }
 }
@@ -59,16 +60,21 @@ exports.create_section = async (req, res) => {
 // Get all sections
 exports.get_sections = async (req, res) => {
     try {
-        const sections = await Section.find({});
-        return res.json({ 
-            success: 1, 
+        const { page_name } = req.query;
+        let fdata = {};
+        if (page_name) {
+            fdata['page_name'] = page_name;
+        }
+        const sections = await Section.find(fdata);
+        return res.json({
+            success: 1,
             message: "Sections fetched successfully",
-            data: sections 
+            data: sections
         });
     } catch (err) {
-        return res.json({ 
-            success: 0, 
-            message: err.message 
+        return res.json({
+            success: 0,
+            message: err.message
         });
     }
 }
@@ -77,15 +83,15 @@ exports.get_sections = async (req, res) => {
 exports.get_active_sections = async (req, res) => {
     try {
         const sections = await Section.find({ isActive: true });
-        return res.json({ 
-            success: 1, 
+        return res.json({
+            success: 1,
             message: "Active sections fetched successfully",
-            data: sections 
+            data: sections
         });
     } catch (err) {
-        return res.json({ 
-            success: 0, 
-            message: err.message 
+        return res.json({
+            success: 0,
+            message: err.message
         });
     }
 }
@@ -94,23 +100,23 @@ exports.get_active_sections = async (req, res) => {
 exports.get_section = async (req, res) => {
     try {
         const section = await Section.findById(req.params.id);
-        
+
         if (!section) {
-            return res.json({ 
-                success: 0, 
-                message: 'Section not found' 
+            return res.json({
+                success: 0,
+                message: 'Section not found'
             });
         }
 
-        return res.json({ 
-            success: 1, 
+        return res.json({
+            success: 1,
             message: "Section fetched successfully",
-            data: section 
+            data: section
         });
     } catch (err) {
-        return res.json({ 
-            success: 0, 
-            message: err.message 
+        return res.json({
+            success: 0,
+            message: err.message
         });
     }
 }
@@ -119,23 +125,23 @@ exports.get_section = async (req, res) => {
 exports.get_section_by_slug = async (req, res) => {
     try {
         const section = await Section.findOne({ slug: req.params.slug });
-        
+
         if (!section) {
-            return res.json({ 
-                success: 0, 
-                message: 'Section not found' 
+            return res.json({
+                success: 0,
+                message: 'Section not found'
             });
         }
 
-        return res.json({ 
-            success: 1, 
+        return res.json({
+            success: 1,
             message: "Section fetched successfully",
-            data: section 
+            data: section
         });
     } catch (err) {
-        return res.json({ 
-            success: 0, 
-            message: err.message 
+        return res.json({
+            success: 0,
+            message: err.message
         });
     }
 }
@@ -147,31 +153,31 @@ exports.update_section = async (req, res) => {
         const section = await Section.findById(id);
 
         if (!section) {
-            return res.json({ 
-                success: 0, 
-                message: 'Section not found' 
+            return res.json({
+                success: 0,
+                message: 'Section not found'
             });
         }
 
         const updatedData = { ...req.body };
-        
+
         // If title is being updated, update slug as well
         if (req.body.title && req.body.title !== section.title) {
             const newSlug = makeSlug(req.body.title);
-            
+
             // Check if new slug already exists in another section
-            const existingSection = await Section.findOne({ 
+            const existingSection = await Section.findOne({
                 slug: newSlug,
                 _id: { $ne: id }
             });
-            
+
             if (existingSection) {
-                return res.json({ 
-                    success: 0, 
-                    message: 'A section with this title already exists' 
+                return res.json({
+                    success: 0,
+                    message: 'A section with this title already exists'
                 });
             }
-            
+
             updatedData.slug = newSlug;
         }
 
@@ -181,15 +187,15 @@ exports.update_section = async (req, res) => {
             { new: true, runValidators: true }
         );
 
-        return res.json({ 
-            success: 1, 
+        return res.json({
+            success: 1,
             message: "Section updated successfully",
-            data: updatedSection 
+            data: updatedSection
         });
     } catch (err) {
-        return res.json({ 
-            success: 0, 
-            message: err.message 
+        return res.json({
+            success: 0,
+            message: err.message
         });
     }
 }
@@ -201,21 +207,21 @@ exports.delete_section = async (req, res) => {
         const section = await Section.findByIdAndDelete(id);
 
         if (!section) {
-            return res.json({ 
-                success: 0, 
-                message: 'Section not found' 
+            return res.json({
+                success: 0,
+                message: 'Section not found'
             });
         }
 
-        return res.json({ 
-            success: 1, 
+        return res.json({
+            success: 1,
             message: "Section deleted successfully",
-            data: section 
+            data: section
         });
     } catch (err) {
-        return res.json({ 
-            success: 0, 
-            message: err.message 
+        return res.json({
+            success: 0,
+            message: err.message
         });
     }
 }
@@ -227,9 +233,9 @@ exports.toggle_section_status = async (req, res) => {
         const section = await Section.findById(id);
 
         if (!section) {
-            return res.json({ 
-                success: 0, 
-                message: 'Section not found' 
+            return res.json({
+                success: 0,
+                message: 'Section not found'
             });
         }
 
@@ -239,15 +245,15 @@ exports.toggle_section_status = async (req, res) => {
             { new: true }
         );
 
-        return res.json({ 
-            success: 1, 
+        return res.json({
+            success: 1,
             message: `Section ${updatedSection.isActive ? 'activated' : 'deactivated'} successfully`,
-            data: updatedSection 
+            data: updatedSection
         });
     } catch (err) {
-        return res.json({ 
-            success: 0, 
-            message: err.message 
+        return res.json({
+            success: 0,
+            message: err.message
         });
     }
 }
