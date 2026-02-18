@@ -9,57 +9,147 @@ const makeSlug = (text) => {
         .replace(/-+/g, '-');
 }
 
-// Create page content section
+
 exports.create_page_content = async (req, res) => {
     try {
-        const fields = ['pageName', 'sectionName', 'sectionTitle'];
-        const emptyFields = fields.filter(field => !req.body[field]);
-        
+        // ── 1. Required field validation ──────────────────────────────────────
+        const requiredFields = ['pageName', 'sectionName', 'sectionTitle'];
+        const emptyFields = requiredFields.filter(field => !req.body[field]?.trim());
+
         if (emptyFields.length > 0) {
-            return res.json({ 
-                success: 0, 
-                message: 'Required fields: pageName, sectionName, sectionTitle', 
-                fields: emptyFields 
+            return res.status(400).json({
+                success: 0,
+                message: "Required fields are missing",
+                fields: emptyFields
             });
         }
 
+        // ── 2. pageName enum validation ───────────────────────────────────────
+        const allowedPages = ['about', 'home', 'contact', 'policy'];
+        if (!allowedPages.includes(req.body.pageName.toLowerCase())) {
+            return res.status(400).json({
+                success: 0,
+                message: `pageName must be one of: ${allowedPages.join(', ')}`
+            });
+        }
+
+        // ── 3. contentType validation (if provided) ───────────────────────────
+        const allowedContentTypes = ['text', 'image', 'text-image', 'carousel', 'gallery', 'team-member'];
+        if (req.body.contentType && !allowedContentTypes.includes(req.body.contentType)) {
+            return res.status(400).json({
+                success: 0,
+                message: `contentType must be one of: ${allowedContentTypes.join(', ')}`
+            });
+        }
+
+        // ── 4. Build slug & check uniqueness ──────────────────────────────────
         const sectionSlug = makeSlug(req.body.sectionName);
-        
-        const data = {
-            ...req.body,
-            sectionSlug: sectionSlug,
-            contentBlocks: req.body.contentBlocks || [],
-            isActive: req.body.isActive !== undefined ? req.body.isActive : true
-        };
-
-        const pageContent = await PageContent.create(data);
-
-        return res.json({ 
-            success: 1, 
-            message: "Page content created successfully", 
-            data: pageContent 
+        const exists = await PageContent.findOne({
+            pageName: req.body.pageName.toLowerCase(),
+            sectionSlug
         });
+
+        if (exists) {
+            return res.status(409).json({
+                success: 0,
+                message: `Section "${req.body.sectionName}" already exists on page "${req.body.pageName}"`
+            });
+        }
+
+        // ── 5. Parse & attach uploaded images to contentBlocks ────────────────
+        //    Multer puts files in req.files as an array with fieldname "images"
+        //    Frontend should send: images[0], images[1], ... matching block order
+        let contentBlocks = [];
+
+        if (req.body.contentBlocks) {
+            // contentBlocks arrives as a JSON string when using multipart/form-data
+            try {
+                contentBlocks = typeof req.body.contentBlocks === 'string'
+                    ? JSON.parse(req.body.contentBlocks)
+                    : req.body.contentBlocks;
+            } catch {
+                return res.status(400).json({
+                    success: 0,
+                    message: "contentBlocks must be a valid JSON array"
+                });
+            }
+
+            if (!Array.isArray(contentBlocks)) {
+                return res.status(400).json({
+                    success: 0,
+                    message: "contentBlocks must be an array"
+                });
+            }
+
+            // Map uploaded files to their corresponding blocks by index
+            // Expects field names like: blockImage_0, blockImage_1, ...
+            const uploadedFiles = req.files || [];
+            const fileMap = {};
+            uploadedFiles.forEach(file => {
+                // fieldname example: "blockImage_0"
+                const match = file.fieldname.match(/blockImage_(\d+)/);
+                if (match) fileMap[parseInt(match[1])] = file.path;
+            });
+
+            contentBlocks = contentBlocks.map((block, index) => ({
+                title: block.title || "",
+                subtitle: block.subtitle || "",
+                description: block.description || "",
+                imageAlt: block.imageAlt || "",
+                order: block.order ?? index,
+                isActive: block.isActive !== undefined ? block.isActive : true,
+                // use uploaded file if present, otherwise keep any existing URL
+                image: fileMap[index] || block.image || ""
+            }));
+        }
+
+        // ── 6. Create document ────────────────────────────────────────────────
+        const pageContent = await PageContent.create({
+            pageName: req.body.pageName.toLowerCase(),
+            sectionName: req.body.sectionName.trim(),
+            sectionSlug,
+            sectionTitle: req.body.sectionTitle.trim(),
+            sectionDescription: req.body.sectionDescription || "",
+            contentType: req.body.contentType || 'text-image',
+            contentBlocks,
+            order: req.body.order || 0,
+            isActive: req.body.isActive !== undefined ? req.body.isActive : true
+        });
+
+        return res.status(201).json({
+            success: 1,
+            message: "Page content created successfully",
+            data: pageContent
+        });
+
     } catch (err) {
-        return res.json({ 
-            success: 0, 
-            message: err.message 
+        // Handle Mongoose duplicate key error (race condition safety net)
+        if (err.code === 11000) {
+            return res.status(409).json({
+                success: 0,
+                message: "A section with this slug already exists on this page"
+            });
+        }
+        return res.status(500).json({
+            success: 0,
+            message: err.message
         });
     }
-}
+};
 
 // Get all page content
 exports.get_all_page_content = async (req, res) => {
     try {
         const content = await PageContent.find({}).sort({ pageName: 1, order: 1 });
-        return res.json({ 
-            success: 1, 
+        return res.json({
+            success: 1,
             message: "Page content fetched successfully",
-            data: content 
+            data: content
         });
     } catch (err) {
-        return res.json({ 
-            success: 0, 
-            message: err.message 
+        return res.json({
+            success: 0,
+            message: err.message
         });
     }
 }
@@ -69,23 +159,23 @@ exports.get_page_content = async (req, res) => {
     try {
         const { pageName } = req.params;
         const content = await PageContent.find({ pageName, isActive: true }).sort({ order: 1 });
-        
+
         if (!content || content.length === 0) {
-            return res.json({ 
-                success: 0, 
-                message: 'No content found for this page' 
+            return res.json({
+                success: 0,
+                message: 'No content found for this page'
             });
         }
 
-        return res.json({ 
-            success: 1, 
+        return res.json({
+            success: 1,
             message: "Page content fetched successfully",
-            data: content 
+            data: content
         });
     } catch (err) {
-        return res.json({ 
-            success: 0, 
-            message: err.message 
+        return res.json({
+            success: 0,
+            message: err.message
         });
     }
 }
@@ -95,23 +185,23 @@ exports.get_page_section = async (req, res) => {
     try {
         const { id } = req.params;
         const content = await PageContent.findById(id);
-        
+
         if (!content) {
-            return res.json({ 
-                success: 0, 
-                message: 'Section not found' 
+            return res.json({
+                success: 0,
+                message: 'Section not found'
             });
         }
 
-        return res.json({ 
-            success: 1, 
+        return res.json({
+            success: 1,
             message: "Section fetched successfully",
-            data: content 
+            data: content
         });
     } catch (err) {
-        return res.json({ 
-            success: 0, 
-            message: err.message 
+        return res.json({
+            success: 0,
+            message: err.message
         });
     }
 }
@@ -123,14 +213,14 @@ exports.update_page_section = async (req, res) => {
         const section = await PageContent.findById(id);
 
         if (!section) {
-            return res.json({ 
-                success: 0, 
-                message: 'Section not found' 
+            return res.json({
+                success: 0,
+                message: 'Section not found'
             });
         }
 
         const updatedData = { ...req.body };
-        
+
         // Update slug if sectionName changes
         if (req.body.sectionName && req.body.sectionName !== section.sectionName) {
             updatedData.sectionSlug = makeSlug(req.body.sectionName);
@@ -142,15 +232,15 @@ exports.update_page_section = async (req, res) => {
             { new: true, runValidators: true }
         );
 
-        return res.json({ 
-            success: 1, 
+        return res.json({
+            success: 1,
             message: "Section updated successfully",
-            data: updatedSection 
+            data: updatedSection
         });
     } catch (err) {
-        return res.json({ 
-            success: 0, 
-            message: err.message 
+        return res.json({
+            success: 0,
+            message: err.message
         });
     }
 }
@@ -162,9 +252,9 @@ exports.add_content_block = async (req, res) => {
         const section = await PageContent.findById(id);
 
         if (!section) {
-            return res.json({ 
-                success: 0, 
-                message: 'Section not found' 
+            return res.json({
+                success: 0,
+                message: 'Section not found'
             });
         }
 
@@ -181,15 +271,15 @@ exports.add_content_block = async (req, res) => {
         section.contentBlocks.push(newBlock);
         const updated = await section.save();
 
-        return res.json({ 
-            success: 1, 
+        return res.json({
+            success: 1,
             message: "Content block added successfully",
-            data: updated 
+            data: updated
         });
     } catch (err) {
-        return res.json({ 
-            success: 0, 
-            message: err.message 
+        return res.json({
+            success: 0,
+            message: err.message
         });
     }
 }
@@ -201,17 +291,17 @@ exports.update_content_block = async (req, res) => {
         const section = await PageContent.findById(id);
 
         if (!section) {
-            return res.json({ 
-                success: 0, 
-                message: 'Section not found' 
+            return res.json({
+                success: 0,
+                message: 'Section not found'
             });
         }
 
         const block = section.contentBlocks.id(blockId);
         if (!block) {
-            return res.json({ 
-                success: 0, 
-                message: 'Content block not found' 
+            return res.json({
+                success: 0,
+                message: 'Content block not found'
             });
         }
 
@@ -226,15 +316,15 @@ exports.update_content_block = async (req, res) => {
 
         const updated = await section.save();
 
-        return res.json({ 
-            success: 1, 
+        return res.json({
+            success: 1,
             message: "Content block updated successfully",
-            data: updated 
+            data: updated
         });
     } catch (err) {
-        return res.json({ 
-            success: 0, 
-            message: err.message 
+        return res.json({
+            success: 0,
+            message: err.message
         });
     }
 }
@@ -246,24 +336,24 @@ exports.delete_content_block = async (req, res) => {
         const section = await PageContent.findById(id);
 
         if (!section) {
-            return res.json({ 
-                success: 0, 
-                message: 'Section not found' 
+            return res.json({
+                success: 0,
+                message: 'Section not found'
             });
         }
 
         section.contentBlocks.id(blockId).deleteOne();
         const updated = await section.save();
 
-        return res.json({ 
-            success: 1, 
+        return res.json({
+            success: 1,
             message: "Content block deleted successfully",
-            data: updated 
+            data: updated
         });
     } catch (err) {
-        return res.json({ 
-            success: 0, 
-            message: err.message 
+        return res.json({
+            success: 0,
+            message: err.message
         });
     }
 }
@@ -275,21 +365,21 @@ exports.delete_page_section = async (req, res) => {
         const section = await PageContent.findByIdAndDelete(id);
 
         if (!section) {
-            return res.json({ 
-                success: 0, 
-                message: 'Section not found' 
+            return res.json({
+                success: 0,
+                message: 'Section not found'
             });
         }
 
-        return res.json({ 
-            success: 1, 
+        return res.json({
+            success: 1,
             message: "Section deleted successfully",
-            data: section 
+            data: section
         });
     } catch (err) {
-        return res.json({ 
-            success: 0, 
-            message: err.message 
+        return res.json({
+            success: 0,
+            message: err.message
         });
     }
 }
@@ -301,9 +391,9 @@ exports.toggle_section_status = async (req, res) => {
         const section = await PageContent.findById(id);
 
         if (!section) {
-            return res.json({ 
-                success: 0, 
-                message: 'Section not found' 
+            return res.json({
+                success: 0,
+                message: 'Section not found'
             });
         }
 
@@ -313,15 +403,15 @@ exports.toggle_section_status = async (req, res) => {
             { new: true }
         );
 
-        return res.json({ 
-            success: 1, 
+        return res.json({
+            success: 1,
             message: `Section ${updated.isActive ? 'activated' : 'deactivated'} successfully`,
-            data: updated 
+            data: updated
         });
     } catch (err) {
-        return res.json({ 
-            success: 0, 
-            message: err.message 
+        return res.json({
+            success: 0,
+            message: err.message
         });
     }
 }
@@ -333,9 +423,9 @@ exports.reorder_sections = async (req, res) => {
         const { sections } = req.body;
 
         if (!Array.isArray(sections)) {
-            return res.json({ 
-                success: 0, 
-                message: 'Sections must be an array' 
+            return res.json({
+                success: 0,
+                message: 'Sections must be an array'
             });
         }
 
@@ -349,15 +439,15 @@ exports.reorder_sections = async (req, res) => {
             updated.push(updatedSection);
         }
 
-        return res.json({ 
-            success: 1, 
+        return res.json({
+            success: 1,
             message: "Sections reordered successfully",
-            data: updated 
+            data: updated
         });
     } catch (err) {
-        return res.json({ 
-            success: 0, 
-            message: err.message 
+        return res.json({
+            success: 0,
+            message: err.message
         });
     }
 }

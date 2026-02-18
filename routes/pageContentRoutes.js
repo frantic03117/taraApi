@@ -1,6 +1,6 @@
 const { Router } = require("express");
 const { Auth } = require("../src/middleware/Auth");
-const { 
+const {
     create_page_content,
     get_all_page_content,
     get_page_content,
@@ -13,6 +13,7 @@ const {
     toggle_section_status,
     reorder_sections
 } = require("../src/controller/PageContentController");
+const Store = require("../src/middleware/Store");
 
 const router = Router();
 
@@ -22,7 +23,7 @@ router.get('/:pageName', get_page_content);
 router.get('/section/:id', get_page_section);
 
 // Admin routes - Create page content
-router.post('/', Auth('Admin'), create_page_content);
+router.post('/', Auth('Admin'), Store('image').any(), create_page_content);
 
 // Admin routes - Update page content
 router.put('/section/:id', Auth('Admin'), update_page_section);
