@@ -11,7 +11,8 @@ const {
     delete_content_block,
     delete_page_section,
     toggle_section_status,
-    reorder_sections
+    reorder_sections,
+    reorderContentBlocks
 } = require("../src/controller/PageContentController");
 const Store = require("../src/middleware/Store");
 
@@ -32,7 +33,8 @@ router.post('/reorder/:pageName', Auth('Admin'), reorder_sections);
 
 // Admin routes - Manage content blocks
 router.post('/section/:id/block', Auth('Admin'), add_content_block);
-router.put('/section/:id/block/:blockId', Auth('Admin'), update_content_block);
+router.patch('/section/:id/block/:blockId', Auth('Admin'), Store('image').any(), update_content_block);
+router.patch('/section/:sectionId/reorder-blocks', Auth('Admin'), reorderContentBlocks);
 router.delete('/section/:id/block/:blockId', Auth('Admin'), delete_content_block);
 
 // Admin routes - Delete page content

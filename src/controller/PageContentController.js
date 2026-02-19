@@ -84,6 +84,7 @@ exports.create_page_content = async (req, res) => {
             // Map uploaded files to their corresponding blocks by index
             // Expects field names like: blockImage_0, blockImage_1, ...
             const uploadedFiles = req.files || [];
+            // return res.status(400).json({ data: uploadedFiles, success: false });
             const fileMap = {};
             uploadedFiles.forEach(file => {
                 // fieldname example: "blockImage_0"
@@ -140,7 +141,12 @@ exports.create_page_content = async (req, res) => {
 // Get all page content
 exports.get_all_page_content = async (req, res) => {
     try {
-        const content = await PageContent.find({}).sort({ pageName: 1, order: 1 });
+        const { pageName } = req.query;
+        let fdata = {};
+        if (pageName) {
+            fdata['pageName'] = pageName;
+        }
+        const content = await PageContent.find(fdata).sort({ pageName: 1, order: 1 });
         return res.json({
             success: 1,
             message: "Page content fetched successfully",
@@ -309,7 +315,7 @@ exports.update_content_block = async (req, res) => {
         if (req.body.title !== undefined) block.title = req.body.title;
         if (req.body.subtitle !== undefined) block.subtitle = req.body.subtitle;
         if (req.body.description !== undefined) block.description = req.body.description;
-        if (req.body.image !== undefined) block.image = req.body.image;
+        if (req.files.length > 0) block.image = req.files[0]?.path;
         if (req.body.imageAlt !== undefined) block.imageAlt = req.body.imageAlt;
         if (req.body.order !== undefined) block.order = req.body.order;
         if (req.body.isActive !== undefined) block.isActive = req.body.isActive;
@@ -328,6 +334,61 @@ exports.update_content_block = async (req, res) => {
         });
     }
 }
+
+exports.reorderContentBlocks = async (req, res) => {
+    try {
+        const { sectionId } = req.params;
+        const updates = req.body.blocks; // array of {_id, order}
+
+        if (!Array.isArray(updates) || updates.length === 0) {
+            return res.status(400).json({
+                success: false,
+                message: "Invalid payload format",
+            });
+        }
+
+        const section = await PageContent.findById(sectionId);
+
+        if (!section) {
+            return res.status(404).json({
+                success: false,
+                message: "Section not found",
+            });
+        }
+
+        // Create map for quick lookup
+        const orderMap = new Map();
+        updates.forEach(item => {
+            orderMap.set(item._id.toString(), item.order);
+        });
+
+        // Update order values
+        section.contentBlocks.forEach(block => {
+            if (orderMap.has(block._id.toString())) {
+                block.order = orderMap.get(block._id.toString());
+            }
+        });
+
+        // Optional: sort array after updating
+        section.contentBlocks.sort((a, b) => a.order - b.order);
+
+        await section.save();
+
+        res.status(200).json({
+            success: true,
+            message: "Content blocks reordered successfully",
+            data: section.contentBlocks,
+        });
+
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({
+            success: false,
+            message: "Server error",
+        });
+    }
+};
+
 
 // Delete content block
 exports.delete_content_block = async (req, res) => {
