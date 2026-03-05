@@ -200,7 +200,6 @@ exports.user_list = async (req, res) => {
                 fdata["_id"] = req.user._id;
             }
         }
-
         if (keyword) {
             fdata["$or"] = [
                 { first_name: { $regex: keyword, $options: "i" } },
