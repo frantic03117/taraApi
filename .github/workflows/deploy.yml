@@ -35,5 +35,5 @@ jobs:
           script: |
             cd /var/www/weartara.com/api
             git pull origin main
-            npm ci
-            pm2 restart taraapi
+            /home/ubuntu/.nvm/versions/node/v20.20.0/bin/npm ci
+            /home/ubuntu/.nvm/versions/node/v20.20.0/bin/pm2 restart taraapi
