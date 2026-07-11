@@ -3,7 +3,8 @@ const { server, app } = require('./app');
 const mongoose = require('mongoose');
 const path = require('path');
 const cors = require('cors');
-const mongourl = "mongodb+srv://franticnoida2016:franticnoida2016@cluster0.9n1kpyn.mongodb.net/taraapi";
+require("dotenv").config();
+const mongourl = process.env.MONGO_URL ||  "mongodb+srv://franticnoida2016:franticnoida2016@cluster0.9n1kpyn.mongodb.net/taraapi";
 mongoose.connect(mongourl);
 const database = mongoose.connection;
 database.on('connected', () => {
