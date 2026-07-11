@@ -4,7 +4,9 @@
   "description": "",
   "main": "taraapi.js",
   "scripts": {
-    "start": "nodemon taraapi.js"
+    "start": "node tara.js",
+    "dev": "nodemon tara.js",
+    "test": "echo \"no tests yet\" && exit 0"
   },
   "keywords": [],
   "author": "",
