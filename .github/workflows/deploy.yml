@@ -33,7 +33,7 @@ jobs:
           username: ubuntu
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
-            cd /var/www/taraapi
+            cd /var/www/weartara.com/api
             git pull origin main
             npm ci
             pm2 restart taraapi
