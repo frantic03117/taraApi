@@ -8,6 +8,6 @@ router.post('/', Auth('Admin'), Store('any').single('image'), _create);
 router.put('/update/:id', Auth('Admin'), update_banner);
 router.delete('/:id', Auth('Admin'), delete_banner);
 router.get('/test', (req, res) => {
-    return res.json({success : 1, data : "CI CD works"});
+    return res.json({success : 1, data : "CI CD works change did it changes"});
 })
 module.exports = router;
